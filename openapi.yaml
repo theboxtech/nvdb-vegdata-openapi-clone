@@ -238,8 +238,7 @@ components:
                 type: string
         srid:
             name: srid
-            description: "Angir hvilket geografisk referansesystem geometrien skal returneres
-        i. \n Mer informasjon: [EPSG:5973](https://epsg.io/5973) [EPSG:4326](http://epsg.io/4326)"
+            description: "Angir hvilket geografisk referansesystem geometrien skal returneres i. \n Mer informasjon: [EPSG:5973](https://epsg.io/5973) [EPSG:4326](http://epsg.io/4326)"
             in: query
             required: false
             schema:
@@ -2619,7 +2618,6 @@ components:
                     example: 48212
                 sideveg:
                     type: boolean
-                    required: false
                     description: Angir det er en sideveg og dermed bruker adresser fra lenken den er sideveg fra.
                     example: true
         omrade_gate:
@@ -2634,7 +2632,6 @@ components:
                     example: 48212
                 sideveg:
                     type: boolean
-                    required: false
                     description: Angir det er en sideveg og dermed bruker adresser fra lenken den er sideveg fra.
                     example: true
                 kommune:
