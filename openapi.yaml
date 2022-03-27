@@ -1,0 +1,4344 @@
+---
+openapi: 3.0.3
+info:
+    title: NVDB API LES V3
+    description: API for å lese vegobjekter, vegnett og transaksjoner fra NVDB
+    contact:
+        email: nvdb@vegvesen.no
+        name: NVDB Statens vegvesen
+        url: https://gitter.im/nvdb-vegdata/api-les-v3
+    termsOfService: https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/
+    license:
+        name: Norsk lisens for offentlige data
+        url: https://data.norge.no/nlod/no/1.0/
+    version: 0.0.1
+servers:
+    - url: https://nvdbapiles-v3.atlas.vegvesen.no
+      description: Produksjon
+    - url: https://nvdbapiles-v3.test.atlas.vegvesen.no
+      description: Test
+    - url: https://nvdbapiles-v3-stm.utv.atlas.vegvesen.no
+      description: Systemtest
+    - url: https://nvdbapiles-v3.utv.atlas.vegvesen.no
+      description: Utvikling
+externalDocs:
+    description: SVV Håndbok V830 (beskriver vegnett og vegsystemreferanse i NVDB)
+    url: https://www.vegvesen.no/fag/teknologi/nasjonal-vegdatabank/vegreferansesystem/
+components:
+    parameters:
+        X-Client:
+            name: X-Client
+            required: true
+            in: header
+            description: 'Noe som identifiserer klienten eller fagsystemet. Eksempler: «Vegkart»,
+        «NVDB Skrive-API». Må settes dersom User-Agent ikke er satt. X-Client foretrekkes.'
+            example: Systemet for vegobjekter
+            schema:
+                type: string
+        X-Client-Session:
+            name: X-Client-Session
+            in: header
+            required: false
+            description: Settes for å identifisere en samling med requester, for eksempel
+                en brukersesjon. (bruk i såfall en uuid eller noe lignende, ikke brukernavn
+                eller epost)
+            example: 402b9aee-16f9-e38d-2ce7-cd6bc20eb3e3
+            schema:
+                type: string
+        If-None-Match:
+            name: If-None-Match
+            in: header
+            description: Dersom header matcher gjeldende E-tag vil 304 returneres
+            schema:
+                type: string
+        fylke:
+            name: fylke
+            description: Filtrer på fylke. Kommaseparert liste. Se /omrader/fylker for mulige
+                verdier.
+            required: false
+            example: 50
+            in: query
+            schema:
+                type: array
+                items:
+                    type: integer
+            style: spaceDelimited
+            explode: false
+        kommune:
+            name: kommune
+            description: Filtrer på kommune. Kommaseparert liste. Se /omrader/kommuner for
+                mulige verdier.
+            required: false
+            example: '5001'
+            in: query
+            schema:
+                type: array
+                items:
+                    type: integer
+            style: spaceDelimited
+            explode: false
+        kontraktsomrade:
+            name: kontraktsomrade
+            description: Filtrer på kontraktsomrade. Kommaseparert liste. Se /omrader/kontraktsomrader
+                for mulige verdier.
+            required: false
+            example: '"2003 NORDKAPP 2011-2016"'
+            in: query
+            schema:
+                type: array
+                items:
+                    type: string
+            style: spaceDelimited
+            explode: false
+        riksvegrute:
+            name: riksvegrute
+            description: Filtrer på riksvegrute. Kommaseparert liste. Se /omrader/riksvegruter
+                for mulige verdier.
+            required: false
+            example: '"RUTE8B"'
+            in: query
+            schema:
+                type: array
+                items:
+                    type: string
+            style: spaceDelimited
+            explode: false
+        gate:
+            name: gate
+            description: Filtrer på gate. Kommaseparert liste. Se /omrader/gater
+                for mulige verdier.
+            required: false
+            example: '"Holkestadveien"'
+            in: query
+            schema:
+                type: array
+                items:
+                    type: string
+            style: spaceDelimited
+            explode: false
+        vegsystemreferanse:
+            name: vegsystemreferanse
+            description: Filtrer vegobjekter på [vegsystemreferanse](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/#vegsystemreferanse).
+                Kommaseparert liste.
+            required: false
+            examples:
+                EV6:
+                   value: EV6
+                R:
+                   value: R
+                F:
+                   value: F
+            in: query
+            schema:
+                type: array
+                items:
+                    type: string
+            style: simple
+            explode: false
+        veglenkesekvens:
+            name: veglenkesekvens
+            description: 'Filtrer vegobjekter på stedfesting på vegnettet. Format: `[fra[-til]]@veglenkesekvensid`
+        Kommaseparert liste.'
+            required: false
+            examples:
+                veglenkeid:
+                    value: '1337'
+                punkt:
+                    value: 0.456@1226
+                strekning:
+                    value: 0.123-0.456@1226
+            in: query
+            schema:
+                type: array
+                items:
+                    type: string
+            style: simple
+            explode: false
+        single_veglenkesekvens:
+            name: veglenkesekvens
+            description: 'Filtrer vegobjekter på stedfesting på vegnettet. Format: `[fra[-til]]@veglenkesekvensid`
+                Kommaseparert liste.'
+            required: false
+            examples:
+                veglenkeid:
+                    value: '1337'
+                punkt:
+                    value: 0.456@1226
+                strekning:
+                    value: 0.123-0.456@1226
+            in: query
+            schema:
+                type: string
+        kartutsnitt:
+            name: kartutsnitt
+            description: Filtrer vegobjekter med kartutsnitt i det gjeldende geografiske
+                referansesystemet (`srid`-paramteret)
+            required: false
+            examples:
+                srid=5973/utm33:
+                    value: '265273,7019372,346553,7061071'
+                    description: Kartutsnitt i srid 5973/utm33
+                srid=4326/wgs84:
+                    value: 5.159,60.211,5.441,60.333
+                    description: Kartutsnitt i srid 4326/wgs84
+            in: query
+            schema:
+                type: string
+        polygon:
+            name: polygon
+            description: Filtrer vegobjekter med polygon i det gjeldende geografiske referansesystemet
+                (`srid`-paramteret)
+            required: false
+            examples:
+                srid=5973/utm33:
+                    value: 20000.0 6520000.0,20500.0 6520000.0,21000.0 6500000.0,20000.0 6520000.0
+                    description: Polygon i srid 5973/utm33
+            in: query
+            schema:
+                type: string
+        tidspunkt:
+            name: tidspunkt
+            description: Begrense spørring til det gitte tidspunktet
+            required: false
+            example: '2018-01-01'
+            in: query
+            schema:
+                type: string
+                format: date
+        ider:
+            name: ider
+            in: query
+            description: Filtrer på objekter med id. Kommaseparert
+            schema:
+                type: array
+                items:
+                    type: integer
+                    format: int64
+            style: spaceDelimited
+            explode: false
+        topologiniva:
+            name: topologinivå
+            in: query
+            description: Hent kun elementer på det gitte topologinivået. - Dersom en veglenke har nivå vegtrasé er ofte feltet for topologinivå ikke tilstede. Man vil da få alle veglenker som ikke har verdi kjørefelt eller kjørebane.
+            schema:
+                type: string
+                enum:
+                    - vegtrase
+                    - kjørebane
+                    - kjørefelt
+        overlapp:
+            name: overlapp
+            description: 'Filtrer på objekter som er stedfestet på samme sted i vegnettet.
+        Format: `?overlapp=<objekttypeid>[(egenskap(attributtid)="verdi" eller enumid)]
+        [Eksempler](https://api.vegdata.no/parameter/avansertefilter.html#filtrering-på-objekter-som-er-stedfestet-på-samme-sted-overlapp)'
+            required: false
+            example: 105(egenskap(2021)=2738)
+            in: query
+            schema:
+                type: string
+        srid:
+            name: srid
+            description: "Angir hvilket geografisk referansesystem geometrien skal returneres
+        i. \n Mer informasjon: [EPSG:5973](https://epsg.io/5973) [EPSG:4326](http://epsg.io/4326)"
+            in: query
+            required: false
+            schema:
+                type: string
+                enum:
+                    - '5973'
+                    - '4326'
+                    - utm33
+                    - wgs84
+                default: '5973'
+        inkluder:
+            name: inkluder
+            in: query
+            description: kommaseparert liste over hvilke informasjonselementer som skal
+                returneres i tillegg til vegobjektenes id.
+            schema:
+                type: array
+                items:
+                    type: string
+                    enum:
+                        - metadata
+                        - egenskaper
+                        - relasjoner
+                        - lokasjon
+                        - vegsegmenter
+                        - geometri
+                        - alle
+                        - minimum
+            style: spaceDelimited
+            explode: false
+        omradeinkluder:
+            name: inkluder
+            in: query
+            description: kommaseparert liste over hvilke informasjonselementer som skal
+                returneres i tillegg til vegobjektenes id.
+            schema:
+                type: array
+                items:
+                    type: string
+                    enum:
+                        - kartutsnitt
+                        - senterpunkt
+                        - vegobjekt
+                        - alle
+            style: spaceDelimited
+            explode: false
+        omradeinkluder_minimal:
+            name: inkluder
+            in: query
+            description: kommaseparert liste over hvilke informasjonselementer som skal
+                returneres i tillegg til vegobjektenes id.
+            schema:
+                type: array
+                items:
+                    type: string
+                    enum:
+                        - vegobjekt
+                        - alle
+            style: spaceDelimited
+            explode: false
+        inkludergeometri:
+            name: inkludergeometri
+            description: |-
+                Et vegobjekt har opptil to geometrier, egengeometri og stedfestet geometri.
+                Egengeoemtrien er plassert under `vegobjekt.egenskaper` om den finnes, stedfestet geometri er plassert under `vegobjekt.lokasjon`.
+                I tillegg til de nevnte feltene på vegobjekt-responsen returneres også `vegobjekt.geometri` (dersom man har inkluder=geometri eller alle),
+                slik at man alltid finner geometrien for vegobjektet ett sted. Dette feltet er egengeometri dersom objektet har det, hvis ikke har feltet stedfestet geometri
+                Ved hvilken av disse som er tilfelle finner man ut ved å se på `vegobjekt.geometri.egengeometri`
+            in: query
+            required: false
+            schema:
+                type: string
+                enum:
+                    - egenskap
+                    - lokasjon
+                    - utledet
+        inkluder_egenskaper:
+            name: inkluder_egenskaper
+            description: |-
+                Gir mulighet til å filtrere hvilke egenskaper som skal returneres med `inkluder=egenskaper`.
+                `basis` er alle egenskaper som ikke er assosiasjoner, stedfesting, geometri, eller lister av disse.
+            in: query
+            required: false
+            schema:
+                type: string
+                enum:
+                    - basis
+                    - assosiasjon
+                    - stedfesting
+                    - geometri
+                    - alle
+        segmentering:
+            name: segmentering
+            description: Angir om strekningsobjekter skal segmenteres etter søkeområdet
+                (fylke, kommune, vegsystemreferanse, kontraksområde, riksvegrute, veglenkesekvens).
+            in: query
+            schema:
+                type: boolean
+                default: true
+        egenskap:
+            name: egenskap
+            in: query
+            schema:
+                type: string
+            description: |-
+                Filtrer vegobjekter på egenskapene de har
+                Egenskapsfilter består av egenskapstypeid, operator og verdi, `?egenskap="<egenskapstype><operator><verdi>"`
+                          Det er støtte for følgende operatorer:
+                * `=` - lik
+                * `!=` - ulik
+                * `<` - større enn
+                * `>` - mindre enn,
+                * `>=` - større enn, eller lik
+                * `<=` - mindre enn, eller lik
+
+                Større enn- og mindre enn-operatorene er kun relevant for egenskapstyper av type tall eller dato.
+                Verdien skal være i henhold til egenskapstypens datatype, og er som oftest en tekst eller et tall.
+                Tekst og tidspunkt må markeres med enkle anførselstegn.
+                For egenskapstyper med forhåndsdefinerte verdier, er det for øyeblikket kun mulig å bruke verdiens id.
+                Bruk null som verdi for å finne objekter som har, eller ikke har, verdi på bestemte egenskapstyper.
+                Syntaksen for spørrespråket støtter bruk av paranteser og AND/OR-sammenhenger.
+                Wildcard * kan benyttes for tekst og datoer.
+                Merk! Egenskapstyper med datatype struktur er ikke søkbare. Du vil få 0 treff for ÅDT-fordeling (606069).
+
+                *Filtrering på relasjoner*: Filtrering på egenskaper i relaterte objekter gjøres også i egenskapsfilteret.
+                Objekter er relatert ved at de har relasjoner til andre objekter. Foreløpig støtter API-et kun filtrering på datter-objekter.
+                Relaterte objekter filtreres ved bruk av funksjonen relasjon.
+                Denne funksjonen tar en objekttype ID som første parameter, og et nytt egenskapsfilter som andre parameter.
+                Eksempel: `?egenskap="relasjon(67, egenskap(1317)>2000"` (Tunneler (581) som har Tunnelløp (67) med Lengde (1317) over 2 km)
+        alle_versjoner:
+            name: alle_versjoner
+            in: query
+            description: Returner alle versjoner som matcher de oppgitte parametrene. Dersom ikke fraværende eller `false` vil kun objekter uten tildato returneres.
+            schema:
+                type: boolean
+        endret_etter:
+            name: endret_etter
+            in: query
+            description: hent alle objekter som er endret etter det gitte tidspunkt.
+            schema:
+                type: string
+                format: date-time
+            example: '2018-01-01T12:13:01'
+        geometritoleranse:
+            name: geometritoleranse
+            description: Angir om det skal returneres en forenklet geometri. Dersom parameteren
+                utelates, returneres full geometri for vegobjektene. Nummeret angir distansetoleranse
+                for generering av forenklet geometri.
+            in: query
+            required: false
+            schema:
+                type: integer
+                enum:
+                    - 10
+                    - 20
+                    - 30
+        dybde:
+            name: dybde
+            description: Hvor mange nivå datterobjekter som skal inkluderes
+            in: query
+            required: false
+            schema:
+                type: string
+                enum:
+                    - 1
+                    - $n
+                    - full
+                default: 1
+                example: 2
+        arm:
+            name: arm
+            description: Filtrer vegobjekter på om de er stedfestet på Strekning med verdi
+                satt for «arm»
+            in: query
+            required: false
+            schema:
+                type: boolean
+        veglenketype:
+            name: veglenketype
+            description: Filtrer vegobjekter på veglenketype på vegnettet objektet er stedfestet. Kommaseparert liste.
+            in: query
+            required: false
+            schema:
+                type: array
+                items:
+                    type: string
+                    enum:
+                        - hoved
+                        - konnektering
+                        - detaljert
+                        - detaljert_konnektering
+        adskiltelop:
+            name: adskiltelop
+            description: Filtrer vegobjekter på om de er stedfestet hvor det er Strekning
+                med verdi satt for «adskilte løp»
+            in: query
+            required: false
+            schema:
+                type: string
+                enum:
+                    - med
+                    - nei
+                    - mot
+        typeveg:
+            name: typeveg
+            description: Filtrer vegobjekter på type veg på vegnettet objektet er stedfestet
+                på. Kommaseparert liste.
+            in: query
+            required: false
+            schema:
+                type: array
+                items:
+                    type: string
+                    enum:
+                        - kanalisertVeg
+                        - enkelBilveg
+                        - rampe
+                        - rundkjøring
+                        - bilferje
+                        - passasjerferje
+                        - gangOgSykkelveg
+                        - sykkelveg
+                        - gangveg
+                        - gågate
+                        - fortau
+                        - trapp
+                        - gangfelt
+                        - gatetun
+                        - traktorveg
+                        - sti
+                        - annet
+            style: spaceDelimited
+            explode: false
+        detaljniva:
+            name: detaljniva
+            description: Filtrer vegobjekter på detaljnivå på vegnettet objektet er stedfestet
+                på (kortnavn fra datakatalogen).
+            in: query
+            required: false
+            schema:
+                type: string
+                enum:
+                    - VT
+                    - KB
+                    - KF
+                    - VTKB
+        kryssystem:
+            name: kryssystem
+            description: Filtrer vegobjekter på om de er stedfestet samme hvor det er et
+                Kryssystem
+            in: query
+            required: false
+            schema:
+                type: boolean
+        sideanlegg:
+            name: sideanlegg
+            description: Filtrer vegobjekter på om de er stedfestet samme hvor det er et
+                Sideanlegg
+            in: query
+            required: false
+            schema:
+                type: boolean
+        trafikantgruppe:
+            name: trafikantgruppe
+            description: Filtrer vegobjekter på trafikantgruppe
+            in: query
+            required: false
+            schema:
+                type: string
+                enum:
+                    - K
+                    - G
+        antall:
+            name: antall
+            description: Angir hvor mange objekter som skal returneres. Øvre grense er avhengig
+                av størrelse på respons, og vil kunne variere fra endepunkt til endepunkt.
+                Dersom det angis en verdi for antall som overskrider maksimum, vil maksimumsverdi
+                benyttes. Se også `sidestørrelse` i responsens `metadata`-objekt.
+            in: query
+            schema:
+                type: integer
+        start:
+            name: start
+            description: Angir markør for neste side objekter som skal returneres. Denne
+                får man i metadata-feltet i responsen.
+            in: query
+            schema:
+                type: string
+    schemas:
+        vegobjekttype-referanse:
+            title: vegobjekttype-referanse
+            properties:
+                id:
+                    title: ID
+                    type: integer
+                    description: ID for vegobjekttype
+                    example: 105
+                navn:
+                    title: Vegobjekttype-navn
+                    type: string
+                    description: Navn for vegobjekttype
+                    example: Fartsgrense
+        vegobjekttype-statistikk:
+            title: Vegobjekttype-statistikk
+            allOf:
+                - "$ref": "#/components/schemas/vegobjekttype-referanse"
+            properties:
+                statistikk:
+                    "$ref": "#/components/schemas/statistikk"
+        statistikk:
+            title: Statistikk
+            properties:
+                antall:
+                    type: integer
+                    description: Antallet objekter
+                    example: 512
+                lengde:
+                    type: number
+                    format: double
+                    description: Den summerte lengden av objektene
+                    example: 526.21
+        vegobjekt-metadata:
+            description: Versjon, start og sluttdato.
+            properties:
+                type:
+                    properties:
+                        id:
+                            description: vegobjekttypens unike id.
+                            type: integer
+                            example: 105
+                        navn:
+                            description: vegobjekttypens offisielle navn
+                            type: string
+                            example: Fartsgrense
+                versjon:
+                    description: Versjonsnummer for dette objektet
+                    type: integer
+                    example: 4
+                startdato:
+                    description: Når dette objektet ble gjeldende
+                    type: string
+                    format: date
+                sluttdato:
+                    description: Når dette objektet ikke lengre er gjeldende
+                    type: string
+                    format: date
+        vegobjekt:
+            title: Vegobjekt
+            required:
+                - id
+                - href
+            properties:
+                id:
+                    title: Vegobjektets id i NVDB
+                    type: integer
+                    format: int64
+                    example: 78772629
+                href:
+                    title: urlen til dette vegobjektet
+                    type: string
+                    example: https://nvdbapiles-v3.atlas.vegvesen.no/vegobjekter/5/78772629/4
+                metadata:
+                    $ref: '#/components/schemas/vegobjekt-metadata'
+                egenskaper:
+                    description: Objektets egenskaper. Tilstede dersom `inkluder=alle|egenskaper`
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/vegobjekt-egenskap"
+                geometri:
+                    description: Objektets geometri på vegnettet, eller egengeometri. Tilstede dersom `inkluder=alle|geometri`
+                    properties:
+                        wkt:
+                            type: string
+                            example: LINESTRING Z (-19327.99023 6852373.97296 27.20309, -19315.2 6852372.7 26.9, -19297 6852371.4 25.9, -19275.91 6852370.8 25.6, -19256.09 6852369.9 24.9, -19249.81213 6852369.51037 24.8513)
+                        srid:
+                            description: Hvilket geografiske referansesystem koordinatene er i
+                            type: integer
+                            example: 5973
+                            enum:
+                                - 5973
+                                - 4326
+                        egengeometri:
+                            description: Angir om geometrien er vegobjektets egengeometri, eller om geometrien er utledet fra vegnettes geometri
+                            type: boolean
+                            example: false
+                        forenklet:
+                            description: tilstede dersom `geometritoleranse` er spesifisert.
+                            type: boolean
+                            example: false
+                lokasjon:
+                    description: Plasseringen av dette objektet. Tilstede dersom `inkluder=alle|lokasjon`
+                    properties:
+                        kommuner:
+                            description: Kommuner dette objektet er stedfestet i.
+                            type: array
+                            items:
+                                type: integer
+                            example: [5001]
+                        fylker:
+                            description: Fylker dette objektet er stedfestet i.
+                            type: array
+                            items:
+                                type: integer
+                            example: [50]
+                        kontrakter:
+                            description: Kontrakter stedfestet på samme sted som dette objektet.
+                            type: array
+                            items:
+                                $ref: "#/components/schemas/kontraktsområde_i_objekt"
+                        riksvegruter:
+                            description: Riksvegruter stedfestet på samme sted som dette objektet.
+                            type: array
+                            items:
+                                $ref: "#/components/schemas/riksvegrute_i_objekt"
+                        gater:
+                            description: Gater stedfestet på samme sted som dette objektet.
+                            type: array
+                            items:
+                                $ref: "#/components/schemas/gate_i_objekt"
+                        vegsystemreferanser:
+                            description: Vegsystemreferanser der objektet er stedfestet
+                            type: array
+                            items:
+                                $ref: '#/components/schemas/vegsystemreferanse'
+                        stedfestinger:
+                            description: Stedfestinger til vegnettet for objektet.
+                            type: array
+                            items:
+                                $ref: '#/components/schemas/vegobjekt-lokasjon-stedfesting'
+                        lengde:
+                            description: Lengden objektet har på vegnettet
+                            type: number
+                            format: double
+                relasjoner:
+                    description: Objektets mødre og døtre. Tilstede dersom `inkluder=alle|relasjoner`
+                    properties:
+                        foreldre:
+                            description: Objekter som peker på dette objektet
+                            type: array
+                            items:
+                                $ref: '#/components/schemas/relasjon'
+                        barn:
+                            description: Objekter dette objektet peker på, assosiasjonsegenskaper dette objektet har.
+                            type: array
+                            items:
+                                oneOf:
+                                    - $ref: '#/components/schemas/relasjon'
+                                    - $ref: '#/components/schemas/relasjon-full'
+                vegsegmenter:
+                    description: Segmenter for dette objektet
+                    type: array
+                    items:
+                        properties:
+                            veglenkesekvensid:
+                                type: integer
+                                format: int64
+                                example: 1241351
+                            relativPosisjon:
+                                description: Relativ posisjon på veglenkesekvens dersom dette er et punkt
+                                type: number
+                                format: double
+                                example: 0.5
+                            startposisjon:
+                                description: Startposisjon på veglenkesekvens
+                                type: number
+                                format: double
+                                example: 0.5
+                            sluttposisjon:
+                                description: Sluttposisjon på veglenkesekvens
+                                type: number
+                                format: double
+                                example: 0.7
+                            lengde:
+                                description: Segmentets lengde
+                                type: number
+                                format: double
+                                example: 23.7
+                            veglenkeType:
+                                format: string
+                                enum:
+                                    - HOVED
+                                    - DETALJERT
+                                    - KONNEKTERING
+                                    - DETALJERT_KONNEKTERING
+                                example: HOVED
+                            detaljnivå:
+                                format: string
+                                enum:
+                                    - Vegtrase
+                                    - Kjørebane
+                                    - Kjørefelt
+                                    - Vegtrase og kjørebane
+                                example: Vegtrase
+                            typeVeg:
+                                $ref: '#/components/schemas/typeVeg'
+                            typeVeg_Sosi:
+                                $ref: '#/components/schemas/typeVegSosi'
+                            startdato:
+                                type: string
+                                format: date
+                                example: 2020-12-23
+                            sluttdato:
+                                type: string
+                                format: date
+                                example: 2020-12-23
+                            geometri:
+                                description: Segmentets geometri
+                                properties:
+                                    wkt:
+                                        type: string
+                                        example: LINESTRING Z (-19327.99023 6852373.97296 27.20309, -19315.2 6852372.7 26.9, -19297 6852371.4 25.9, -19275.91 6852370.8 25.6, -19256.09 6852369.9 24.9, -19249.81213 6852369.51037 24.8513)
+                                    srid:
+                                        description: Hvilket geografiske referansesystem koordinatene er i
+                                        type: integer
+                                        example: 5973
+                                        enum:
+                                            - 5973
+                                            - 4326
+                                    forenklet:
+                                        description: tilstede dersom `geometritoleranse` er spesifisert.
+                            fylke:
+                                type: integer
+                                example: 50
+                            kommune:
+                                type: integer
+                                example: 5001
+                            vegsystemreferanse:
+                                $ref: '#/components/schemas/vegsystemreferanse'
+        typeVeg:
+            type: string
+            enum:
+                - Kanalisert veg
+                - Enkel bilveg
+                - Rampe
+                - Rundkjøring
+                - Bilferje
+                - Passasjerferje
+                - Gang- og sykkelveg
+                - Sykkelveg
+                - Gangveg
+                - Gågate
+                - Fortau
+                - Trapp
+                - Gangfelt
+                - Gatetun
+                - Traktorveg
+                - Sti
+                - Annet
+            example: Enkel bilveg
+        typeVegSosi:
+            type: string
+            enum:
+                - kanalisertVeg
+                - enkelBilveg
+                - rampe
+                - rundkjøring
+                - bilferje
+                - passasjerferje
+                - gangOgSykkelveg
+                - sykkelveg
+                - gangveg
+                - gågate
+                - fortau
+                - trapp
+                - gangfelt
+                - gatetun
+                - traktorveg
+                - sti
+                - annet
+        meter-referanse:
+            properties:
+                meter:
+                    description: Meterverdi for punktreferanse
+                    type: number
+                    format: double
+                    example: 123.321
+                fra_meter:
+                    description: Start-meterverdi for strekningsreferanse
+                    type: number
+                    format: double
+                    example: 123.321
+                til_meter:
+                    description: Slutt-meterverdi for strekningsreferanse
+                    type: number
+                    format: double
+                    example: 321.123
+        vegsystemreferanse:
+            description: Vegsystemreferanse
+            properties:
+                kortform:
+                    type: string
+                    example: EV6S1D1M1000
+                vegsystem:
+                    description: Vegsystem (915)
+                    properties:
+                        id:
+                            type: integer
+                            format: int64
+                            example: 1235315
+                        version:
+                            type: integer
+                            example: 1
+                        vegkategori:
+                            type: string
+                            example: E
+                        fase:
+                            type: string
+                            example: V
+                        nummer:
+                            type: integer
+                            example: 6
+                strekning:
+                    description: Strekning (916)
+                    allOf:
+                        - $ref: '#/components/schemas/meter-referanse'
+                        - properties:
+                              id:
+                                  description: Fraværende for objekters vegsystemreferanse
+                                  type: integer
+                                  format: int64
+                                  example: 1235315
+                              version:
+                                  description: Fraværende for objekters vegsystemreferanse
+                                  type: integer
+                                  example: 1
+                              strekning:
+                                  type: integer
+                                  example: 1
+                              delstrekning:
+                                  type: integer
+                                  example: 1
+                              arm:
+                                  type: boolean
+                                  example: false
+                              adskilte_løp:
+                                  enum:
+                                      - Med
+                                      - Mot
+                                      - Nei
+                                  example: Nei
+                              adskilte_løp_nummer:
+                                  type: string
+                              trafikantgruppe:
+                                  type: string
+                                  enum:
+                                      - K
+                                      - G
+                                  example: K
+                              retning:
+                                  $ref: '#/components/schemas/retning'
+                kryssystem:
+                    description: Kryssystem (917) og Kryssdel (918)
+                    allOf:
+                        - $ref: '#/components/schemas/meter-referanse'
+                        - properties:
+                              id:
+                                  description: Fraværende for objekters vegsystemreferanse
+                                  type: integer
+                                  format: int64
+                                  example: 1235315
+                              version:
+                                  description: Fraværende for objekters vegsystemreferanse
+                                  type: integer
+                                  example: 1
+                              kryssystem:
+                                  type: integer
+                                  example: 1
+                              kryssdel:
+                                  type: integer
+                                  example: 1
+                              trafikantgruppe:
+                                  type: string
+                                  enum:
+                                      - K
+                                      - G
+                                  example: K
+                              retning:
+                                  $ref: '#/components/schemas/retning'
+                sidealegg:
+                    description: Sideanlegg (919) og Sideanleggsdel (920)
+                    allOf:
+                        - $ref: '#/components/schemas/meter-referanse'
+                        - properties:
+                              id:
+                                  description: Fraværende for objekters vegsystemreferanse
+                                  type: integer
+                                  format: int64
+                                  example: 1235315
+                              version:
+                                  description: Fraværende for objekters vegsystemreferanse
+                                  type: integer
+                                  example: 1
+                              sideanlegg:
+                                  type: integer
+                                  example: 1
+                              sideanleggsdel:
+                                  type: integer
+                                  example: 1
+                              trafikantgruppe:
+                                  type: string
+                                  enum:
+                                      - K
+                                      - G
+                                  example: K
+                              retning:
+                                  $ref: '#/components/schemas/retning'
+        vegobjekt-lokasjon-stedfesting:
+            description: Stedfesting på vegnettet
+            oneOf:
+                - $ref: '#/components/schemas/vegobjekt-lokasjon-stedfesting-punkt'
+                - $ref: '#/components/schemas/vegobjekt-lokasjon-stedfesting-linje'
+                - $ref: '#/components/schemas/vegobjekt-lokasjon-stedfesting-sving'
+            discriminator:
+                propertyName: type
+                mapping:
+                    Punkt: '#/components/schemas/vegobjekt-lokasjon-stedfesting-punkt'
+                    Linje: '#/components/schemas/vegobjekt-lokasjon-stedfesting-linje'
+                    Sving: '#/components/schemas/vegobjekt-lokasjon-stedfesting-sving'
+        vegobjekt-lokasjon-stedfesting-punkt:
+            description: Punktstedfesting
+            properties:
+                type:
+                    type: string
+                    example: Punkt
+                veglenkesekvensid:
+                    type: integer
+                    format: int64
+                    example: 1235134
+                relativPosisjon:
+                    type: number
+                    format: double
+                    example: 0.23
+                kortform:
+                    type: string
+                    example: EV6S1D1m1000
+                kjørefelt:
+                    $ref: '#/components/schemas/kjorefelt'
+                sideposisjon:
+                    $ref: '#/components/schemas/sideposisjon'
+                retning:
+                    $ref: '#/components/schemas/retning'
+        vegobjekt-lokasjon-stedfesting-linje:
+            description: Linjestedfesting
+            properties:
+                type:
+                    type: string
+                    example: Linje
+                veglenkesekvensid:
+                    type: integer
+                    format: int64
+                    example: 1235134
+                startposisjon:
+                    type: number
+                    format: double
+                    example: 0.23
+                sluttposisjon:
+                    type: number
+                    format: double
+                    example: 0.73
+                kortform:
+                    type: string
+                    example: EV6S1D1m1000-2000
+                kjørefelt:
+                    $ref: '#/components/schemas/kjorefelt'
+                sideposisjon:
+                    $ref: '#/components/schemas/sideposisjon'
+                retning:
+                    $ref: '#/components/schemas/retning'
+        vegobjekt-lokasjon-stedfesting-sving:
+            description: Svingstedfesting
+            properties:
+                type:
+                    type: string
+                    example: Sving
+                nodeid:
+                    type: integer
+                    format: int64
+                    example: 541414
+                startpunkt:
+                    $ref: '#/components/schemas/vegobjekt-lokasjon-stedfesting-punkt'
+                sluttpunkt:
+                    $ref: '#/components/schemas/vegobjekt-lokasjon-stedfesting-punkt'
+        relasjon-base:
+            properties:
+                listeid:
+                    description: Id for listeegenskap relasjonen ligger i.
+                    type: integer
+                    example: 120123
+                id:
+                    description: Id for egenskapen/relasjonen
+                    type: integer
+                    example: 100123
+                type:
+                    description: Vegobjekttype for relatert objekt
+                    properties:
+                        id:
+                            type: integer
+                            example: 105
+                        navn:
+                            type: string
+                            example: Fartsgrense
+        relasjon:
+            description: Relasjon med id
+            allOf:
+                - $ref: '#/components/schemas/relasjon-base'
+                - properties:
+                      vegobjekter:
+                          description: Id for relaterte objekter
+                          type: array
+                          items:
+                              type: integer
+                              format: int64
+        relasjon-full:
+            description: Relasjon med fullstendige objekter
+            allOf:
+                -   $ref: '#/components/schemas/relasjon-base'
+                -   properties:
+                        vegobjekter:
+                            description: Relaterte objekter med samme egenskaper som toppobjektene.
+                            type: array
+                            items:
+                                $ref: '#/components/schemas/vegobjekt'
+        vegobjekt-egenskap:
+            title: Vegobjektegenskap
+            oneOf:
+                - $ref: "#/components/schemas/vegobjekt-egenskap-assosiasjon"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-binar"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-boolsk"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-tekst"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-dato"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-flyttall"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-heltall"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-struktur"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-geometri"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-stedfesting"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-kortdato"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-tid"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-liste"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-tekstenum"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-helltallenum"
+                - $ref: "#/components/schemas/vegobjekt-egenskap-flyttallenum"
+            discriminator:
+                propertyName: egenskapstype
+                mapping:
+                    Assosiasjon: "#/components/schemas/vegobjekt-egenskap-assosiasjon"
+                    Binær: "#/components/schemas/vegobjekt-egenskap-binar"
+                    Boolsk: "#/components/schemas/vegobjekt-egenskap-boolsk"
+                    Tekst: "#/components/schemas/vegobjekt-egenskap-tekst"
+                    Dato: "#/components/schemas/vegobjekt-egenskap-dato"
+                    Flyttall: "#/components/schemas/vegobjekt-egenskap-flyttall"
+                    Heltall: "#/components/schemas/vegobjekt-egenskap-heltall"
+                    Struktur: "#/components/schemas/vegobjekt-egenskap-struktur"
+                    Geometri: "#/components/schemas/vegobjekt-egenskap-geometri"
+                    Stedfesting: "#/components/schemas/vegobjekt-egenskap-stedfesting"
+                    Kortdato: "#/components/schemas/vegobjekt-egenskap-kortdato"
+                    Tid: "#/components/schemas/vegobjekt-egenskap-tid"
+                    Liste: "#/components/schemas/vegobjekt-egenskap-liste"
+                    Tekstenum: "#/components/schemas/vegobjekt-egenskap-tekstenum"
+                    Helltallenum: "#/components/schemas/vegobjekt-egenskap-helltallenum"
+                    Flyttallenum: "#/components/schemas/vegobjekt-egenskap-flyttallenum"
+        egenskapstype:
+            type: string
+            description: Beskriver hvilken type egenskapstypen er
+            example: Tekst
+            enum:
+                - Assosiasjon
+                - Boolsk
+                - Binær
+                - Tekst
+                - Dato
+                - Flyttall
+                - Heltall
+                - Struktur
+                - Geometri
+                - Stedfesting
+                - Kortdato
+                - Tid
+                - Liste
+                - Tekstenum
+                - Heltallenum
+                - Flyttallenum
+        datatype:
+            type: string
+            description: Navnet på datatypen i datakatalogen (/vegobjekttyper/datatyper) (datatype er et felt som kanskje blir fjernet. Benytt `egenskapstype` og `geometritype`, `stedfestingstype`)
+            example: FlerverdiAttributt, Tekst
+            enum:
+                - Tekst
+                - Tall
+                - Dato
+                - KortDato
+                - Klokkeslett
+                - GeomPunkt
+                - GeomLinje eller Kurve
+                - GeomFlate
+                - GeomSammensatt geometri
+                - GeomMultiPunkt
+                - GeomMultiKurve/linje
+                - Struktur
+                - BinærObjekt
+                - Boolean
+                - Tegn
+                - FlerverdiAttributt, Tekst
+                - FlerverdiAttributt, Tall
+                - Liste
+                - Assosiasjon
+        vegobjekt-egenskap-base:
+            properties:
+                id:
+                    type: integer
+                    description: id for egenskapen
+                    example: 1089
+                navn:
+                    type: string
+                    description: Navnet på egenskapstypen i datakatalogen
+                    example: Rekkverkstype
+                egenskapstype:
+                    $ref: '#/components/schemas/egenskapstype'
+                datatype:
+                    $ref: '#/components/schemas/datatype'
+        vegobjekt-egenskap-assosiasjon:
+            description: Assosiasjon til et annet vegobjekt
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      verdi:
+                          type: integer
+                          description: NVDB ID for assosiert objekt
+                          example: 1353151
+
+        vegobjekt-egenskap-binar:
+            description: Binær blob-egenskap
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      blob_id:
+                          type: integer
+                          description: ID for binær blob
+                          example: 123
+                      blob_format:
+                          type: string
+                          description: Blobformat
+                          example: Bilde0265.jpg
+                      href:
+                          type: string
+                          description: Fullstendig url for nedlasting
+                          example: https://nvdbapiles-v3.atlas.vegvesen.no/vegobjekter/105/12435135/1/egenskaper/4315/123/binaer
+        vegobjekt-egenskap-boolsk:
+            description: Boolsk egenskap
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      verdi:
+                          type: boolean
+                          example: false
+        vegobjekt-egenskap-tekst:
+            description: Tekstegenskap
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      verdi:
+                          type: string
+                          example: Stålskinne m/trestolper
+        vegobjekt-egenskap-dato:
+            description: Datoegenskap
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      verdi:
+                          type: string
+                          example: 2014-06-23
+                          format: date
+        vegobjekt-egenskap-flyttall:
+            description: Flyttall-egenskap
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      verdi:
+                          type: number
+                          format: double
+        vegobjekt-egenskap-heltall:
+            description: Heltall-egenskap
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      verdi:
+                          type: integer
+        vegobjekt-egenskap-struktur:
+            description: Egenskap som inneholder forskjellige andre egenskaper
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      innhold:
+                          type: array
+                          items:
+                              $ref: '#/components/schemas/vegobjekt-egenskap'
+        vegobjekt-egenskap-geometri:
+            description: Geometriegenskap
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - $ref: '#/components/schemas/geometri-base'
+        geometri-base:
+            properties:
+                verdi:
+                    description: WKT for egenskapen
+                    type: string
+                    example: LINESTRING Z (-19327.99023 6852373.97296 27.20309, -19315.2 6852372.7 26.9, -19297 6852371.4 25.9, -19275.91 6852370.8 25.6, -19256.09 6852369.9 24.9, -19249.81213 6852369.51037 24.8513)
+
+                kvalitet:
+                    $ref: '#/components/schemas/geometri-kvalitet'
+                datafangstdato:
+                    type: string
+                    format: date
+                    example: 2020-12-12
+                verifiseringsdato:
+                    type: string
+                    format: date
+                    example: 2020-12-12
+                oppdateringsdato:
+                    type: string
+                    format: date
+                    example: 2020-12-12
+                prosesshistorikk:
+                    type: string
+                    example: Tekst
+                kommune:
+                    type: integer
+                    example: 5001
+                medium:
+                    type: string
+                    description: Se vegobjekttype 793, egenskap 9792 Medium
+                    enum:
+                        - T
+                        - B
+                        - L
+                        - U
+                        - S
+                        - O
+                        - V
+                        - D
+                        - I
+                        - W
+                        - J
+                        - X
+                medium_nvdb:
+                    type: integer
+                    description: Se vegobjekttype 793, egenskap 9792 Medium, slik den er lagret i NVDB
+                    enum:
+                        - 0
+                        - 1
+                        - 2
+                        - 3
+                        - 4
+                        - 5
+                        - 6
+                        - 7
+                        - 8
+                        - 9
+                        - 10
+                        - 11
+                sosinavn:
+                    type: string
+                temakode:
+                    description: Se vegobjekttype 793, egenskap 9784 Temakode eller https://www.kartverket.no/standard/sosi/SOSI-koder/SOSI-koder.xls
+                    type: integer
+                    example: 7001
+                    enum:
+                        - 7001
+                        - 7004
+                        - 7012
+                        - 7011
+                        - 7010
+                        - 7201
+                        - 7042
+                        - 7043
+                        - 7046
+                        - 6304
+                lengde:
+                    type: number
+                    format: double
+                    example: 513.123
+                høydereferanse:
+                    type: integer
+        vegobjekt-egenskap-stedfesting:
+            description: Et objekts stedfesting på vegnettet
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      stedfestingstype:
+                          type: string
+                          example: Linje
+                          enum:
+                              - Punkt
+                              - Linje
+                              - Sving
+            oneOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-stedfesting-punkt'
+                - $ref: '#/components/schemas/vegobjekt-egenskap-stedfesting-linje'
+                - $ref: '#/components/schemas/vegobjekt-egenskap-stedfesting-sving'
+            discriminator:
+                propertyName: stedfestingstype
+        vegobjekt-egenskap-stedfesting-base:
+            properties:
+                veglenkesekvensid:
+                    description: Id for veglenkesekvens
+                    type: integer
+                    format: int64
+                    example: 124541
+                retning:
+                    $ref: '#/components/schemas/retning'
+                sideposisjon:
+                    $ref: '#/components/schemas/sideposisjon'
+                kjørefelt:
+                    $ref: '#/components/schemas/kjorefelt'
+        kjorefelt:
+            description: Se vegobjekttype 793 NVDB Dokumentasjon, egenskap 11431 Feltkode
+            type: array
+            example: ["1H1","2"]
+            items:
+                type: string
+        retning:
+            type: string
+            description: Om objektet er stedfestet med eller mot lenkeretning
+            example: MED
+            enum:
+                - MED
+                - MOT
+        sideposisjon:
+            type: string
+            description: Se vegobjekttype 793 NVDB Dokumentasjon, egenskap 8762 Sideposisjon
+            example: H
+            enum:
+                - 0
+                - V
+                - H
+                - M
+                - K
+                - MV
+                - MH
+                - VT
+                - HT
+                - R0
+                - L
+        vegobjekt-egenskap-stedfesting-punkt:
+            description: Punktstedfesting
+            allOf:
+                - properties:
+                      stedfestingstype:
+                          type: string
+                          example: Punkt
+                          enum:
+                              - Punkt
+                      relativPosisjon:
+                          description: Relativ posisjon på veglenkesekvensen
+                          type: number
+                          format: double
+                          example: 0.2
+                -   $ref: '#/components/schemas/vegobjekt-egenskap-stedfesting-base'
+        vegobjekt-egenskap-stedfesting-linje:
+            description: Linjestedfesting
+            allOf:
+                - properties:
+                      stedfestingstype:
+                          type: string
+                          example: Linje
+                          enum:
+                              - Linje
+                      fra_posisjon:
+                          type: number
+                          format: double
+                          example: 0.5
+                      til_posisjon:
+                          type: number
+                          format: double
+                          example: 0.5
+                -   $ref: '#/components/schemas/vegobjekt-egenskap-stedfesting-base'
+        vegobjekt-egenskap-stedfesting-sving:
+            description: Svingerestriksjon
+            allOf:
+                - properties:
+                      stedfestingstype:
+                          type: string
+                          example: Sving
+                          enum:
+                              - Sving
+                      nodeid:
+                          type: integer
+                          format: int64
+                          example: 1231514
+                      startpunkt:
+                          $ref: '#/components/schemas/vegobjekt-egenskap-stedfesting-punkt'
+                      sluttpunkt:
+                          $ref: '#/components/schemas/vegobjekt-egenskap-stedfesting-punkt'
+        vegobjekt-egenskap-kortdato:
+            description: Kortdato
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      verdi:
+                          type: string
+                          example: 12-20
+        vegobjekt-egenskap-tid:
+            description: Tid
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      verdi:
+                          type: string
+                          example: 12:20
+        vegobjekt-egenskap-liste:
+            description: Liste med egenskaper av samme type
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      innhold:
+                          type: array
+                          items:
+                              $ref: '#/components/schemas/vegobjekt-egenskap'
+        vegobjekt-egenskap-tekstenum:
+            description: Tekstenum
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      verdi:
+                          type: string
+                          example: Forbikjøring forbudt
+                      enum_id:
+                          type: integer
+                          example: 1345
+        vegobjekt-egenskap-helltallenum:
+            description: Helstallsenum
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      verdi:
+                          type: integer
+                          example: 123
+                      enum_id:
+                          type: integer
+                          example: 1346
+        vegobjekt-egenskap-flyttallenum:
+            description: Flyttallsenum
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-egenskap-base'
+                - properties:
+                      verdi:
+                          type: number
+                          format: double
+                          example: 123.321
+                      enum_id:
+                          type: integer
+                          example: 1347
+        geometri-kvalitet:
+            description: Se vegobjekttype 793 NVDB dokumentasjon, egenskap 9953 Kvalitet, geometri eller [SOSI-standard kapittel 1.6.2.8](https://kartverket.no/globalassets/standard/sosi-standarden-del-1-og-2/sosi-standard-del-1/generelle-typer-4.5.pdf)
+            properties:
+                målemetode:
+                    description: Se vegobjekttype 793 NVDB Dokumentasjon, egenskap 9543 Målemetode eller Kodeliste i kapitel 1.6.2.8.2.
+                    type: string
+                    example: Terrengmålt
+                    enum:
+                        - Terrengmålt
+                        - Fastsatt ved dom eller kongelig resolusjon
+                        - Flere, som ikke listes ut her.
+                nøyaktighet:
+                    description: Punktstandardavviket i grunnriss for punkter samt tverravvik for linjer, i cm. Se underegenskap 9551 Nøyaktighet.
+                    type: integer
+                    example: 200
+                synbarhet:
+                    description: Hvor godt den kartlagte detalj var synbar ved kartleggingen. Kodeliste i kapitel 1.6.2.8.4. Se underegenskap 9545 Synbarhet
+                    type: string
+                    example: Fullt ut synlig/gjenfinnbar i terrenget
+                    enum:
+                        - Ikke registrert
+                        - Fullt ut synlig/gjenfinnbar i terrenget
+                        - Dårlig gjenfinnbar i terreng
+                        - Middels synlig i flybilde/modell
+                        - Dårlig/ikke synlig i flybilde/modell
+                målemetodeHøyde:
+                    description: Metode for å måle objekttypens høydeverdi. Kodeliste i kapitel 1.6.2.8.3. Se underegenskap 9544 H-målemetode.
+                    type: string
+                    example: Spesielle metoder
+                    enum:
+                        - Spesielle metoder
+                        - Ikke registrert
+                        - Flere, ikke listet ut her.
+                nøyaktighetHøyde:
+                    description: Nøyaktighet for høyden i cm. Se underegenskap 9552 H-nøyaktighet
+                    type: integer
+                    example: 100
+                toleranse:
+                    description: Absolutt toleranse for geometriske avvik. Se underegenskap 9783 Toleranse
+                    type: integer
+                    example: 1
+        paginering-metadata:
+            title: Metadata om antallet returnerte objekter og pagineringsinformasjon
+            properties:
+                antall:
+                    description: Totalt antall treff
+                    type: integer
+                    example: 1234
+                returnert:
+                    description: Antallet objekter som ble returnert i denne responsen.
+                    type: integer
+                    example: 1000
+                sidestørrelse:
+                    description: Maks antall objekter som blir returnert per side
+                    type: integer
+                    example: 1000
+                neste:
+                    description: Metadata om neste side. Vil alltid ha verdi, når resultatsettet er tomt vil neste
+                        side være tom og samme `start` token vil returneres for påfølgende side.
+                    properties:
+                        start:
+                            type: string
+                            description: Token som brukes for å få neste side
+                            example: AEhZez1g4yb
+                        href:
+                            type: string
+                            description: Komplett url for neste side
+                            example: https://nvdbapiles-v3.atlas.vegvesen.no/vegobjekter/105?start=AEhZez1g4yb
+
+        vegobjekt-liste-respons:
+            title: respons for liste av vegobjekter
+            properties:
+                objekter:
+                    type: array
+                    items:
+                        "$ref": "#/components/schemas/vegobjekt"
+                metadata:
+                    "$ref": "#/components/schemas/paginering-metadata"
+        transaksjon-liste-respons:
+            title: respons for liste av transaksjoner
+            properties:
+                objekter:
+                    type: array
+                    items:
+                        "$ref": "#/components/schemas/transaksjon"
+                metadata:
+                    "$ref": "#/components/schemas/paginering-metadata"
+        vegobjekttype-egenskap:
+            title: Vegobjekttype-egenskap
+            oneOf:
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-assosiasjon"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-binar"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-boolsk"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-tekst"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-dato"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-flyttall"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-heltall"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-struktur"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-geometri"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-stedfesting"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-kortdato"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-tid"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-liste"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-tekstenum"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-helltallenum"
+                -   $ref: "#/components/schemas/vegobjekt-type-egenskap-flyttallenum"
+            discriminator:
+                propertyName: egenskapstype
+                mapping:
+                    Assosiasjon: "#/components/schemas/vegobjekt-type-egenskap-assosiasjon"
+                    Binær: "#/components/schemas/vegobjekt-type-egenskap-binar"
+                    Boolsk: "#/components/schemas/vegobjekt-type-egenskap-boolsk"
+                    Tekst: "#/components/schemas/vegobjekt-type-egenskap-tekst"
+                    Dato: "#/components/schemas/vegobjekt-type-egenskap-dato"
+                    Flyttall: "#/components/schemas/vegobjekt-type-egenskap-flyttall"
+                    Heltall: "#/components/schemas/vegobjekt-type-egenskap-heltall"
+                    Struktur: "#/components/schemas/vegobjekt-type-egenskap-struktur"
+                    Geometri: "#/components/schemas/vegobjekt-type-egenskap-geometri"
+                    Stedfesting: "#/components/schemas/vegobjekt-type-egenskap-stedfesting"
+                    Kortdato: "#/components/schemas/vegobjekt-type-egenskap-kortdato"
+                    Tid: "#/components/schemas/vegobjekt-type-egenskap-tid"
+                    Liste: "#/components/schemas/vegobjekt-type-egenskap-liste"
+                    Tekstenum: "#/components/schemas/vegobjekt-type-egenskap-tekstenum"
+                    Helltallenum: "#/components/schemas/vegobjekt-type-egenskap-helltallenum"
+                    Flyttallenum: "#/components/schemas/vegobjekt-type-egenskap-flyttallenum"
+        vegobjekt-type-egenskap-base:
+            properties:
+                id:
+                    type: integer
+                    description: Angir egenskapstypens unike id.
+                    example: 1089
+                kategori:
+                    type: integer
+                    description: Kategorien til denne egenskapstypen. Se endepunkt /vegobjekttyper/egenskapstypekategorier
+                    example: 7
+                navn:
+                    type: string
+                    description: Angir egenskapstypens offisielle navn.
+                    example: Rekkverkstype
+                kortnavn:
+                    type: string
+                    description: Et forkortet navn
+                    example: rkvt
+                beskrivelse:
+                    type: string
+                    description: Tekstlig beskrivelse av egenskapstypen.
+                    example: Angir hvilken type rekkverk det er tale om
+                egenskapstype:
+                    $ref: '#/components/schemas/egenskapstype'
+                datatype:
+                    $ref: '#/components/schemas/datatype'
+                sosinvdbnavn:
+                    type: string
+                    description: Navn som brukes i dataleveranser
+                    example: Rekkverkstype_1089
+                sosinavn:
+                    type: string
+                    description: Navn på tilsvarende objekttype i SOSI-standarden
+                    example: Rekkverkstype
+                sorteringsnummer:
+                    type: integer
+                    description: Sorteringsnummer for egenskapstypen
+                sensitivitet:
+                    type: integer
+                    description: Angir om egenskapstypen har verdier av sensitiv art. Dersom verdi er 0 er egenskapen ikke sensitiv.
+                    enum:
+                        - 0
+                        - 1
+                        - 2
+                        - 3
+                viktighet:
+                    type: string
+                    description: Angir om det er krav til regisrering av egenskapstypen
+                    example: PÅKREVD_ABSOLUTT
+                    enum:
+                        - IKKE_SATT
+                        - PÅKREVD_ABSOLUTT -Et vegobjekt kan ikke lagres i NVDB uten at denne egenskapstypen har verdi
+                        - PÅKREVD_IKKE_ABSOLUTT - Egenskapstypen skal registreres, men vegobjekter som mangler verdi skal ikke avvises
+                        - BETINGET - Egenskapstypens skal registreres, dersom det er relevant eller om gitte kriterier er oppfylt
+                        - OPSJONELL - Det er frivillig å registrere egenskapstypen
+                        - MINDRE_VIKTIG - Det er frivillig å registrere egenskapstypen
+                        - HISTORISK - Egenskapstypen skal ikke registreres
+                ledetekst:
+                    type: string
+                skrivebeskyttet:
+                    type: boolean
+                komplementær_egenskapstype:
+                    type: integer
+                grunnrissreferanse:
+                    type: string
+                nøyaktighetskrav_grunnriss:
+                    type: number
+                    format: double
+                høydereferanse:
+                    type: string
+                høydereferanse_tall:
+                    type: integer
+                nøyaktighetskrav_høyde:
+                    type: number
+                    format: double
+                referansegeometri_tilstrekkelig:
+                    type: boolean
+                sosi_referanse:
+                    type: string
+                avledet:
+                    type: boolean
+                obligatorisk_verdi:
+                    type: boolean
+                gruppesorteringsnummer:
+                    type: integer
+                tilleggskrav:
+                    type: array
+                    items:
+                        type: string
+                        example: Verdi avledet fra geometriegenskap
+        enhet:
+            properties:
+                id:
+                    type: integer
+                navn:
+                    type: string
+                kortnavn:
+                    type: string
+        vegobjekt-type-egenskap-primitiv:
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-type-egenskap-base'
+                - properties:
+                      objektliste_dato:
+                          example: 2012-05-08
+                          type: string
+                          description: Dato for når egenskapstypen ble en del av objektlista. Om feltet ikke har noen verdi, er ikke egenskapstypen en del av objektlista.
+                      slutt_dato:
+                          example: 2012-05-08
+                          type: string
+                      lengdeavhengig_verdi:
+                          type: boolean
+                      ajourhold_snu:
+                          type: boolean
+        vegobjekt-type-egenskap-assosiasjon:
+            description: Assosiasjon
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-type-egenskap-base'
+                - properties:
+                      tilknytning:
+                          type: integer
+                      vegobjekttypeid:
+                          type: integer
+                      innenfor_mor:
+                          type: boolean
+                      startdato:
+                          type: string
+                      sluttdato:
+                          type: string
+                      assosiasjonskrav:
+                          type: integer
+                      assosiasjonskravkommentar:
+                          type: string
+        vegobjekt-type-egenskap-binar:
+            description: Binær
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-type-egenskap-primitiv'
+                -   properties:
+                        mediatype:
+                            type: string
+        vegobjekt-type-egenskap-boolsk:
+            description: Boolsk
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-type-egenskap-primitiv'
+                -   properties:
+                        standardverdi:
+                            type: boolean
+        vegobjekt-type-egenskap-tekst:
+            description: Tekst
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-primitiv'
+                -   properties:
+                        standardverdi:
+                            type: string
+                        feltlengde:
+                            type: integer
+                        feltmønster:
+                            type: string
+        vegobjekt-type-egenskap-dato:
+            description: Dato
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-primitiv'
+                -   properties:
+                        standardverdi:
+                            type: string
+                            format: date
+                        min_anbefalt:
+                            type: string
+                            format: date
+                        maks_anbefalt:
+                            type: string
+                            format: date
+                        feltmønster:
+                            type: string
+        vegobjekt-type-egenskap-flyttall:
+            description: Flyttall
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-primitiv'
+                -   properties:
+                        standardverdi:
+                            type: number
+                            format: double
+                        min_anbefalt:
+                            type: number
+                            format: double
+                        maks_anbefalt:
+                            type: number
+                            format: double
+                        min:
+                            type: number
+                            format: double
+                        maks:
+                            type: number
+                            format: double
+                        desimaler:
+                            type: integer
+                        feltlengde:
+                            type: integer
+                        fortegnsendring_snu:
+                            type: boolean
+                        enhet:
+                            $ref: '#/components/schemas/enhet'
+        vegobjekt-type-egenskap-heltall:
+            description: Heltall
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-primitiv'
+                -   properties:
+                        standardverdi:
+                            type: integer
+                        min_anbefalt:
+                            type: integer
+                        maks_anbefalt:
+                            type: integer
+                        min:
+                            type: integer
+                        maks:
+                            type: integer
+                        desimaler:
+                            type: integer
+                        feltlengde:
+                            type: integer
+                        fortegnsendring_snu:
+                            type: boolean
+                        enhet:
+                            $ref: '#/components/schemas/enhet'
+        vegobjekt-type-egenskap-struktur:
+            description: Struktur
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-base'
+                -   properties:
+                        egenskaper:
+                            description: Egenskapstyper som kan inngå i strukturen
+                            type: array
+                            items:
+                                $ref: '#/components/schemas/egenskapstype'
+        vegobjekt-type-egenskap-geometri:
+            description: Geometri
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-base'
+                -   properties:
+                        dimensjoner:
+                            type: integer
+                        geometritype:
+                            type: string
+                            enum:
+                                - PUNKT
+                                - POLYGON
+                                - LINJE
+                                - FLERELINJE
+                                - FLEREPUNKT
+                                - FLEREPOLYGON
+                                - KOMPLEKS
+                        innenfor_mor:
+                            type: boolean
+        vegobjekt-type-egenskap-stedfesting:
+            description: Stedfesting
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-base'
+                -   properties:
+                        stedfestingstype:
+                            type: string
+                            enum:
+                                - Punkt
+                                - Linje
+                                - Sving
+                        geometritype:
+                            type: string
+                            enum:
+                                - Punkt
+                                - Linje
+                                - Sving
+                        overlapp_ok:
+                            type: boolean
+                        kjørefelt_relevant:
+                            type: string
+                            enum:
+                                - KAN
+                                - NEI
+                                - MÅ
+                        sideposisjon_relevant:
+                            type: string
+                            enum:
+                                - KAN
+                                - NEI
+                                - MÅ
+                        innenfor_mor:
+                            type: boolean
+                        vegnettsajourhold_splitt:
+                            type: string
+                            enum:
+                                - IKKE_TATT_STILLING
+                                - KAN_IKKE_SPLITTES
+                                - KAN_SPLITTES
+                        overlappsautomatikk:
+                            type: string
+                        retning_relevant:
+                            type: boolean
+        vegobjekt-type-egenskap-kortdato:
+            description: Kortdato
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-primitiv'
+                -   properties:
+                        standardverdi:
+                            type: integer
+                        min_anbefalt:
+                            type: integer
+                            format: date
+                        maks_anbefalt:
+                            type: integer
+                        feltmønster:
+                            type: string
+        vegobjekt-type-egenskap-tid:
+            description: Tid
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-primitiv'
+                -   properties:
+                        standardverdi:
+                            type: string
+                        min_anbefalt:
+                            type: string
+                        maks_anbefalt:
+                            type: string
+                        feltmønster:
+                            type: string
+        vegobjekt-type-egenskap-liste:
+            description: Liste
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-base'
+                -   properties:
+                        maksimalt_antall_verdier:
+                            type: integer
+                        minimalt_antall_verdier:
+                            type: integer
+                        innhold:
+                            $ref: '#/components/schemas/vegobjekttype-egenskap'
+        vegobjekt-type-egenskap-tekstenum:
+            description: Tekstenum
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-tekst'
+                -   properties:
+                        tillate_verdier:
+                            type: array
+                            items:
+                                $ref: '#/components/schemas/enum_verdi_tekst'
+        vegobjekt-type-egenskap-helltallenum:
+            description: Helstallsenum
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-heltall'
+                -   properties:
+                        tillate_verdier:
+                            type: array
+                            items:
+                                $ref: '#/components/schemas/enum_verdi_heltall'
+        vegobjekt-type-egenskap-flyttallenum:
+            description: Flyttallsenum
+            allOf:
+                -   $ref: '#/components/schemas/vegobjekt-type-egenskap-flyttall'
+                -   properties:
+                        tillate_verdier:
+                            type: array
+                            items:
+                                $ref: '#/components/schemas/enum_verdi_flyttall'
+        enum_verdi_base:
+            properties:
+                id:
+                    type: integer
+                kortnavn:
+                    type: string
+                kortnavnlengde:
+                    type: integer
+                kortnavn_brukbar:
+                    type: boolean
+                beskrivelse:
+                    type: string
+                sorteringsnummer:
+                    type: integer
+                objektliste_dato:
+                    type: string
+                    format: date
+                sluttdato:
+                    type: string
+                    format: date
+                standardverdi:
+                    type: boolean
+                komplementær_enumverdi:
+                    type: integer
+            discriminator:
+                propertyName: type
+                mapping:
+                    Heltall: '#/components/schemas/enum_verdi_heltall'
+                    Flyttall: '#/components/schemas/enum_verdi_flyttall'
+                    Tekst: '#/components/schemas/enum_verdi_tekst'
+        enum_verdi_tekst:
+            allOf:
+                - $ref: '#/components/schemas/enum_verdi_base'
+                - properties:
+                      verdi:
+                          type: string
+        enum_verdi_heltall:
+            allOf:
+                -   $ref: '#/components/schemas/enum_verdi_base'
+                -   properties:
+                        verdi:
+                            type: integer
+        enum_verdi_flyttall:
+            allOf:
+                -   $ref: '#/components/schemas/enum_verdi_base'
+                -   properties:
+                        verdi:
+                            type: number
+                            format: double
+        vegobjekttype:
+            properties:
+                id:
+                    type: integer
+                    example: 5
+                navn:
+                    type: string
+                    example: Rekkverk
+                beskrivelse:
+                    type: string
+                    example: En anordning som skal hindre at kjøretøy forlater vegen (Håndbok N101 (231))
+                stedfesting:
+                    description: TODO
+                objektliste_dato:
+                    type: string
+                    format: date
+                    description: Dato for når vegobjekttypen ble en del av objektlista. Om feltet ikke har noen verdi, er ikke vegobjekttypen en del av objektlista
+                    example: 2012-05-08
+                veiledning:
+                    type: string
+                    description: Supplerende informasjon til beskrivelsen, for eksempel en registreringsveiledning
+                    example: Der rekkverk følger vegens kurvatur er start og slutt rekkverkets begynnelse/slutt. Dette defineres ved start / støtpute, evt fra der rekkverk blir synlig/usynlig.
+                sosinvdbnavn:
+                    type: string
+                    description: Navn som brukes i dataleveranser
+                    example: Rekkverk_5
+                sosinavn:
+                    type: string
+                    description: Navn som brukes i dataleveranser
+                    example: Rekkverk
+                sorteringsnummer:
+                    type: integer
+                    description: For bruk i sortering av objektlista
+                kategorier:
+                    description: Hvilke kategorier denne vegobjekttypen hører til
+                    type: array
+                    items:
+                        properties:
+                            primærkategori:
+                                type: boolean
+                                example: false
+                            nummer:
+                                type: integer
+                                example: 20
+                            id:
+                                type: integer
+                                example: 24
+                            navn:
+                                type: string
+                                example: Vegutstyr
+                egenskapstyper:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/vegobjekttype-egenskap'
+                relasjonstyper:
+                    type: array
+                    description: TODO
+                    items:
+                        properties:
+                            foreldre:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/vegobjekttype-relasjon'
+                            barn:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/vegobjekttype-relasjon'
+                status:
+                    type: string
+                    example: NVDB, ok
+                hovedkategori:
+                    type: string
+                    example: Generell
+                dekningsgrad:
+                    description: Angir om eksisterende objekter skal bli automatisk splittet når de overlapper med nye objekter. true=Skal splittes, false=Skal ikke splittes
+                    type: boolean
+                tidsrom_relevant:
+                    description: Angir om vegobjektene normalt har en gyldighetsperiode på operativt vegnett
+                    type: boolean
+                konnekteringslenke_ok:
+                    type: boolean
+                    description: Angir om vegobjekter av denne typen skal kunne stedfestes på konnekteringslenker
+                abstrakt_type:
+                    type: boolean
+                    description: Angir om vegobjekttype er abstrakt eller ikke. En abstrakt vegobjekttype skal ikke kunne ha forekomster i NVDB.
+                må_ha_mor:
+                    type: boolean
+                    description: Angir hvorvidt vegobjektene må være tilknyttet et morobjekt for å kunne eksistere.
+                er_dataserie:
+                    type: boolean
+                en_versjon:
+                    type: boolean
+                    description: Angir om det er tillatt med kun én versjon av et vegobjekt.
+        vegobjekttype-relasjon:
+            properties:
+                id:
+                    type: integer
+                navn:
+                    type: string
+                egenskapstype:
+                    type: string
+                    enum:
+                        - Liste
+                        - Assosiasjon
+            discriminator:
+                propertyName: egenskapstype
+                mapping:
+                    Liste: '#/components/schemas/vegobjekttype-relasjon-liste'
+                    Assosiasjon: '#/components/schemas/vegobjekttype-relasjon-enkel'
+        vegobjekttype-relasjon-enkel:
+            properties:
+                innenfor_mor:
+                    type: string
+                    enum:
+                        - JA
+                        - NEI
+                        - MED_AVVIK
+                relasjonstype:
+                    type: string
+                    enum:
+                        - ASSOSIASJON
+                        - AGGREGERING
+                        - KOMPOSISJON
+                        - TOPOLOGI
+                type:
+                    properties:
+                        id:
+                            type: integer
+                        navn:
+                            type: string
+                        objektliste_dato:
+                            type: string
+                            format: date
+        vegobjekttype-relasjon-liste:
+            properties:
+                innhold:
+                    $ref: '#/components/schemas/vegobjekttype-relasjon-enkel'
+        veglenkesekvens-liste-respons:
+            title: respons for liste av veglenkesekvenser
+            properties:
+                objekter:
+                    type: array
+                    items:
+                        "$ref": "#/components/schemas/veglenkesekvens"
+                metadata:
+                    "$ref": "#/components/schemas/paginering-metadata"
+        vegnoder-liste-respons:
+            title: respons for liste av vegnoder
+            properties:
+                objekter:
+                    type: array
+                    items:
+                        "$ref": "#/components/schemas/vegnode"
+                metadata:
+                    "$ref": "#/components/schemas/paginering-metadata"
+        veglenkesegment-liste-respons:
+            title: respons for liste av veglenkesegmenter
+            properties:
+                objekter:
+                    type: array
+                    items:
+                        "$ref": "#/components/schemas/veglenkesegment"
+                metadata:
+                    "$ref": "#/components/schemas/paginering-metadata"
+        veglenkesekvens:
+            title: Veglenkesekvens
+            properties:
+                veglenkesekvensid:
+                    type: integer
+                    format: int64
+                href:
+                    type: string
+                    example: https://nvdbapiles-v3.atlas.vegvesen.no
+                låst_lengde:
+                    type: boolean
+                lengde:
+                    type: number
+                    format: double
+                porter:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/port'
+                veglenker:
+                    type: array
+                    items:
+                        anyOf:
+                            - $ref: '#/components/schemas/veglenke-hoved'
+                            - $ref: '#/components/schemas/veglenke-detaljert'
+                            - $ref: '#/components/schemas/veglenke-konnektering'
+                            - $ref: '#/components/schemas/veglenke-detaljert-konnektering'
+        port:
+            title: Vegport
+            properties:
+                id:
+                    type: integer
+                    format: int4
+                relativPosisjon:
+                    type: number
+                    format: double
+                tilkobling:
+                    properties:
+                        portnummer:
+                            type: integer
+                        nodeid:
+                            type: integer
+                            format: int64
+                        href:
+                            type: string
+                            example: https://nvdbapiles-v3.atlas.vegvesen.no/vegnett/noder/123
+        veglenke:
+            title: Veglenke
+            properties:
+                veglenkenummer:
+                    type: integer
+                type:
+                    $ref: '#/components/schemas/veglenketype'
+                startport:
+                    type: integer
+                sluttport:
+                    type: integer
+                startposisjon:
+                    type: number
+                    format: double
+                sluttposisjon:
+                    type: number
+                    format: double
+                lengde:
+                    type: number
+                    format: double
+                geometri:
+                    $ref: '#/components/schemas/geometri-base'
+                måledato:
+                    type: string
+                    format: date
+                målemetode:
+                    type: string
+                    enum:
+                        - Metrert
+                        - Geometrisk
+                detaljnivå:
+                    $ref: '#/components/schemas/detaljniva'
+                typeVeg:
+                    $ref: '#/components/schemas/typeVeg'
+                typeVeg_sosi:
+                    $ref: '#/components/schemas/typeVegSosi'
+                startdato:
+                    type: string
+                    format: date
+                sluttdato:
+                    type: string
+                    format: date
+            discriminator:
+                propertyName: type
+                mapping:
+                    HOVED: '#/components/schemas/veglenke-hoved'
+                    DETALJERT: '#/components/schemas/veglenke-detaljert'
+                    KONNEKTERING: '#/components/schemas/veglenke-konnektering'
+                    DETALJERT_KONNEKTERING: '#/components/schemas/veglenke-detaljert-konnektering'
+        veglenke-hoved:
+            title: Hovedveglenke
+            allOf:
+                - $ref: '#/components/schemas/veglenke'
+                - properties:
+                      feltoversikt:
+                          type: array
+                          items:
+                              type: string
+        veglenke-detaljert:
+            title: Detaljert veglenke
+            allOf:
+                -   $ref: '#/components/schemas/veglenke'
+                -   properties:
+                        topologinivå:
+                            $ref: '#/components/schemas/topologiniva'
+                        superstedfesting:
+                            $ref: '#/components/schemas/superstedfesting'
+        veglenke-konnektering:
+            title: Konnekteringslenke
+            allOf:
+                - $ref: '#/components/schemas/veglenke'
+        veglenke-detaljert-konnektering:
+            title: Detaljert konnekteringslenke
+            allOf:
+                - $ref: '#/components/schemas/veglenke-detaljert'
+        topologiniva:
+            type: string
+            enum:
+                - Vegtrasé
+                - Kjørebane
+                - Kjørefelt
+        detaljniva:
+            type: string
+            enum:
+                - Vegtrase
+                - Kjørebane
+                - Kjørefelt
+                - Vegtrase og kjørebane
+        veglenketype:
+            format: string
+            enum:
+                - HOVED
+                - DETALJERT
+                - KONNEKTERING
+                - DETALJERT_KONNEKTERING
+            example: HOVED
+        superstedfesting:
+            properties:
+                veglenkesekvens:
+                    type: integer
+                    format: int64
+                startposisjon:
+                    type: number
+                    format: double
+                sluttposisjon:
+                    type: number
+                    format: double
+                kjørefelt:
+                    type: array
+                    items:
+                        type: string
+                sideposisjon:
+                    $ref: '#/components/schemas/sideposisjon'
+                retning:
+                    $ref: '#/components/schemas/retning'
+        vegnode:
+            description: Vegnode
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                href:
+                    type: string
+                    example: https://nvdbapiles-v3.atlas.vegvesen.no/vegnett/noder/123
+                startdato:
+                    type: string
+                    format: date
+                sluttdato:
+                    type: string
+                    format: date
+                geometri:
+                    $ref: '#/components/schemas/geometri-base'
+                porter:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/port'
+        veglenkesegment-base:
+            title: Felles for rute og veglenkesegment
+            properties:
+                href:
+                    type: string
+                    example: https://nvdbapiles-v3.atlas.vegvesen.no/vegnett/veglenkesekvenser/segmentert/123
+                metadata:
+                    properties:
+                        startdato:
+                            type: string
+                            format: date
+                        sluttdato:
+                            type: string
+                            format: date
+                veglenkesekvensid:
+                    type: integer
+                    format: int64
+                startposisjon:
+                    type: number
+                    format: double
+                sluttposisjon:
+                    type: number
+                    format: double
+                kortform:
+                    type: string
+                    example: EV6S1D1M10-20
+                veglenkenummer:
+                    type: integer
+                startnode:
+                    type: integer
+                    format: string
+                sluttnode:
+                    type: integer
+                    format: string
+                type:
+                    $ref: '#/components/schemas/veglenketype'
+                topologinivå:
+                    $ref: '#/components/schemas/topologiniva'
+                detaljnivå:
+                    $ref: '#/components/schemas/detaljniva'
+                typeVeg:
+                    $ref: '#/components/schemas/typeVeg'
+                typeVeg_sosi:
+                    $ref: '#/components/schemas/typeVegSosi'
+                superstedfesting:
+                    $ref: '#/components/schemas/superstedfesting'
+                feltoversikt:
+                    type: array
+                    items:
+                        type: string
+                geometri:
+                    description: Objektets geometri på vegnettet, eller egengeometri. Tilstede dersom `inkluder=alle|geometri`
+                    properties:
+                        wkt:
+                            type: string
+                            example: LINESTRING Z (-19327.99023 6852373.97296 27.20309, -19315.2 6852372.7 26.9, -19297 6852371.4 25.9, -19275.91 6852370.8 25.6, -19256.09 6852369.9 24.9, -19249.81213 6852369.51037 24.8513)
+                        srid:
+                            description: Hvilket geografiske referansesystem koordinatene er i
+                            type: integer
+                            example: 5973
+                            enum:
+                                - 5973
+                                - 4326
+                lengde:
+                    type: number
+                    format: double
+                fylke:
+                    type: integer
+                kommune:
+                    type: integer
+                kontraktsområder:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/kontraktsområde_i_objekt"
+                riksvegruter:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/riksvegrute_i_objekt"
+                gate:
+                    $ref: "#/components/schemas/gate_i_objekt"
+                vegsystemreferanse:
+                    $ref: '#/components/schemas/vegsystemreferanse'
+        veglenkesegment:
+            title: Veglenkesegment
+            allOf:
+                - $ref: '#/components/schemas/veglenkesegment-base'
+                - properties:
+                      segmentnummer:
+                          type: integer
+                      referanse:
+                          type: string
+                      måledato:
+                          type: string
+                          format: date
+                      målemetode:
+                          type: string
+                          enum:
+                              - Metrert
+                              - Geometrisk
+        detaljert-rute-del:
+            title: Detaljert visning av beregnet rute
+            allOf:
+                -   $ref: '#/components/schemas/veglenkesegment-base'
+        kort-rute-del:
+            title: Minimal visning av beregnet rute
+            properties:
+                veglenkesekvensid:
+                    type: integer
+                    format: int64
+                startposisjon:
+                    type: number
+                    format: double
+                sluttposisjon:
+                    type: number
+                    format: double
+        kommune:
+            properties:
+                fylke:
+                    type: integer
+                    example: 54
+                id:
+                    type: integer
+                    format: int64
+                    example: 1002101860
+                navn:
+                    type: string
+                    example: Sør-Varanger
+                nummer:
+                    type: integer
+                    example: 5444
+        fylke:
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    example: 1006202694
+                navn:
+                    type: string
+                    example: Troms og Finnmark
+                nummer:
+                    type: integer
+                    example: 54
+        riksvegrute_base:
+            properties:
+                navn:
+                    type: string
+                    example: RUTE8B
+                nummer:
+                    type: string
+                    example: 8B
+                periode:
+                    type: string
+                    example: 2014-2023 / 2018-2029
+                beskrivelse:
+                    type: string
+                    example: E6 Nordkjosbotn - Kirkenes
+                fylker:
+                    description: Fylker riksvegruten dekker
+                    type: array
+                    items:
+                        type: integer
+                kommuner:
+                    description: Kommuner riksvegruten dekker
+                    type: array
+                    items:
+                        type: integer
+        riksvegrute_rev1:
+            allOf:
+                -   $ref: '#/components/schemas/riksvegrute_base'
+                -   properties:
+                        id:
+                            type: integer
+                            format: int64
+                            example: 724828100
+        riksvegrute_rev2:
+            allOf:
+                -   $ref: '#/components/schemas/riksvegrute_base'
+                -   properties:
+                        vegobjekter:
+                            type: array
+                            items:
+                                $ref: "#/components/schemas/vegobjekt_referanse"
+        kontraktsomrade_base:
+            properties:
+                navn:
+                    type: string
+                    example: T1260 Hordaland vest 2016-2022
+                nummer:
+                    type: integer
+                    example: 1260
+                type:
+                    type: string
+                    example: Tunnelkontrakt
+                fylker:
+                    description: Fylker kontraktsområdet dekker
+                    type: array
+                    items:
+                        type: integer
+                kommuner:
+                    description: Kommuner kontraktsområdet dekker
+                    type: array
+                    items:
+                        type: integer
+        kontraktsomrade_rev1:
+            allOf:
+                - $ref: '#/components/schemas/kontraktsomrade_base'
+                - properties:
+                      id:
+                          type: integer
+                          format: int64
+                          example: 724828100
+        kontraktsomrade_rev2:
+            allOf:
+                - $ref: '#/components/schemas/kontraktsomrade_base'
+                - properties:
+                      vegobjekter:
+                          type: array
+                          items:
+                              $ref: "#/components/schemas/vegobjekt_referanse"
+        kontraktsområde_i_objekt:
+            properties:
+                navn:
+                    type: string
+                nummer:
+                    type: integer
+        riksvegrute_i_objekt:
+            properties:
+                nummer:
+                    type: integer
+                    example: 1
+                navn:
+                    type: string
+                    example: RUTE1
+                periode:
+                    type: string
+                    example: 2014-2023
+        gate_i_objekt:
+            properties:
+                navn:
+                    type: string
+                    description: Navnet på gaten
+                    example: Holkestadveien
+                gatekode:
+                    type: integer
+                    description: gatekode
+                    example: 48212
+                sideveg:
+                    type: boolean
+                    required: false
+                    description: Angir det er en sideveg og dermed bruker adresser fra lenken den er sideveg fra.
+                    example: true
+        omrade_gate:
+            properties:
+                navn:
+                    type: string
+                    description: Navnet på gaten
+                    example: Holkestadveien
+                gatekode:
+                    type: integer
+                    description: gatekode
+                    example: 48212
+                sideveg:
+                    type: boolean
+                    required: false
+                    description: Angir det er en sideveg og dermed bruker adresser fra lenken den er sideveg fra.
+                    example: true
+                kommune:
+                    type: integer
+                    description: Kommune gaten er i
+                    example: 1848
+                vegobjekter:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/vegobjekt_referanse"
+        vegobjekt_referanse:
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    description: Vegobjektid
+                    example: 1009352337
+                versjon:
+                    type: integer
+                    description: Versjon av objektet
+                    example: 1
+                type:
+                    type: integer
+                    description: Vegobjekttype
+                    example: 538
+        posisjonsresultat:
+            properties:
+                vegsystemreferanse:
+                    $ref: '#/components/schemas/vegsystemreferanse'
+                veglenkesekvens:
+                    properties:
+                        veglenkesekvensid:
+                            type: integer
+                            format: int64
+                            example: 123513
+                        relativPosisjon:
+                            type: number
+                            format: double
+                            example: 0.5
+                        kortform:
+                            type: string
+                            example: 0.5@123513
+                geometri:
+                    properties:
+                        wkt:
+                            type: string
+                            example: POINT Z(495458.273 7529868.487 10.475)
+                        srid:
+                            type: integer
+                            example: 5973
+                            default: 5973
+                avstand:
+                    type: number
+                    format: double
+                    description: Lengde i meter fra posisjonsoppslag
+                    example: 7.123
+                kommune:
+                    type: integer
+                    example: 1848
+        transaksjon-vegobjekt-metadata:
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-metadata'
+                - properties:
+                      transaksjonstype:
+                          type: string
+                          enum:
+                              - CREATED
+                              - MODIFIED
+                              - DELETED
+        transaksjon:
+            description: Transaksjon i NVDB
+            properties:
+                taskId:
+                    type: integer
+                    example: 4886715
+                taskTypeId:
+                    type: integer
+                    example: 61498
+                tidspunkt:
+                    type: string
+                    format: datetime
+                    example: 2020-07-15T10:29:58
+                objekter:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/vegobjekt-metadata'
+        innlogging:
+            description: Brukerdetaljer
+            properties:
+                username:
+                    type: string
+                    example: svvuser
+                password:
+                    type: string
+                    example: passord123
+                user_type:
+                    type: string
+                    enum:
+                        - employee
+                        - serviceaccount
+                        - external
+                    default: employee
+        tokens:
+            description: OIDC tokens
+            properties:
+                idToken:
+                    type: string
+                refreshToken:
+                    type: string
+        rute-respons:
+            description: Ruteberegningsrespons
+            properties:
+                vegnettsrutesegmenter:
+                    type: array
+                    items:
+                        oneOf:
+                            - $ref: '#/components/schemas/kort-rute-del'
+                            - $ref: '#/components/schemas/detaljert-rute-del'
+                metadata:
+                    properties:
+                        antall:
+                            type: number
+                            description: Antall rutedeler
+                        lengde:
+                            type: number
+                            format: double
+                            description: Rutas lengde i meter
+                        status:
+                            type: number
+                            description: Statuskode for returnert rute
+                        status_tekst:
+                            type: string
+                            description: Statuskode i tekstform for returnert rute
+
+        RouteRequest:
+            properties:
+                start:
+                    type: string
+                    description: Startposisjon som et punkt eller posisjon@veglenkesekvens.
+                    example: 226761.786,6564469.3787 eller 0.1@1234
+                slutt:
+                    type: string
+                    description: Sluttposisjon som et punkt eller posisjon@veglenkesekvens.
+                    example: 226855.034,6564472.225 eller 0.9@4321
+                geometri:
+                    type: string
+                    description: Finn sammenhengende vegnett som passer med denne geometrien. Benytter punkt-til-punkt-beregning mellom alle punkter i geometrien.
+                    example: LINESTRING Z(226778.2 6564468.6 5, 226747.1 6564470.1 5, 226717.5 6564466.4 5, 226705.9 6564462.7 6.2, 226687.2 6564462.9 6, 226657.7 6564460.7 6, 226628.5 6564459.5 6, 226611.3 6564459.6 6.2)
+                maks_avstand:
+                    type: integer
+                    default: 10
+                    description: Maks avstand i meter til veglenker
+                omkrets:
+                    type: integer
+                    default: 100
+                    description: Konvolutt lagt rund start- og slutt-punkt for å beregne rute
+                konnekteringslenker:
+                    type: boolean
+                    default: false
+                    description: Inkludere konnekteringslenker
+                detaljerte_lenker:
+                    type: boolean
+                    default: false
+                    description: Inkludere detaljerte lenker
+                kortform:
+                    type: boolean
+                    default: false
+                    description: Returner minimal respons
+                vegsystemreferanse:
+                    type: string
+                    description: Begrens søk innenfor vegreferanse
+                trafikantgruppe:
+                    type: string
+                    description: Begrens søk innenfor trafikantgruppe. Overstyrer behold_trafikantgruppe
+                behold_trafikantgruppe:
+                    type: boolean
+                    default: false
+                    description: Behold trafikantgruppe gjennom ruten. Trafikantgruppe velges fra første og siste punkt i ruten, om de er ulike velges K (kjørende)
+                typeveg:
+                    type: string
+                    description: Begrens søk innenfor typeveg
+                tidspunkt:
+                    type: string
+                    format: date
+                    description: Søk i vegnett åpent på dette tidspunktet
+                tidspunkt_start:
+                    type: string
+                    format: date
+                    description: Begrens vegnettgyldighet til denne startdatoen. Må brukes sammen med `tidspunkt_slutt`.
+                tidspunkt_slutt:
+                    type: string
+                    format: date
+                    description: Begrens vegnettgyldighet til denne sluttdatoen. Må brukes sammen med `tidspunkt_start`.
+    headers:
+        X-REQUEST-ID:
+            description: UUID tildelet av Statens vegvesens intrastruktur
+            schema:
+                type: string
+        X-Datakatalog-Versjon:
+            description: Gjeldende versjon av Datakatalogen
+            schema:
+                type: string
+        ETag:
+            description: ETag for bruk av caching av responser
+            schema:
+                type: string
+paths:
+    "/":
+        get:
+            description: List alle resursser
+            parameters:
+                - "$ref": "#/components/parameters/X-Client"
+                - "$ref": "#/components/parameters/X-Client-Session"
+            responses:
+                '200':
+                    description: Liste med alle tilgjengelige resursser
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    properties:
+                                        navn:
+                                            description: Navn på resurs
+                                            type: string
+                                            example: Vegobjekter
+                                        href:
+                                            description: Absolutt url til resurs
+                                            type: string
+                                            example: https://nvdbapiles-v3.atlas.vegvesen.no/vegobjekter
+    "/vegobjekter":
+        parameters:
+            - "$ref": "#/components/parameters/X-Client"
+            - "$ref": "#/components/parameters/X-Client-Session"
+            - name: statistikk
+              in: query
+              description: Om statistikk skal inkluderes.
+              required: false
+              schema:
+                  type: boolean
+                  default: true
+            - "$ref": "#/components/parameters/fylke"
+            - "$ref": "#/components/parameters/kommune"
+            - "$ref": "#/components/parameters/kontraktsomrade"
+            - "$ref": "#/components/parameters/riksvegrute"
+            - "$ref": "#/components/parameters/gate"
+            - "$ref": "#/components/parameters/vegsystemreferanse"
+            - "$ref": "#/components/parameters/veglenkesekvens"
+            - "$ref": "#/components/parameters/kartutsnitt"
+            - "$ref": "#/components/parameters/polygon"
+            - "$ref": "#/components/parameters/tidspunkt"
+            - "$ref": "#/components/parameters/overlapp"
+        get:
+            tags:
+                - Vegobjekter
+            responses:
+                '200':
+                    description: |-
+                        Uten request-parametre lister dette endepunktet ut lenke til vegobjekter av hver vegobjekttype med statistikk.
+                        Med parametre listes ut de vegobjekttypene som passer med filtrene definert av parametrene.
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    "$ref": "#/components/schemas/vegobjekttype-statistikk"
+    "/vegobjekter/statistikk":
+        parameters:
+            - "$ref": "#/components/parameters/X-Client"
+            - "$ref": "#/components/parameters/X-Client-Session"
+            - "$ref": "#/components/parameters/fylke"
+            - "$ref": "#/components/parameters/kommune"
+            - "$ref": "#/components/parameters/kontraktsomrade"
+            - "$ref": "#/components/parameters/riksvegrute"
+            - "$ref": "#/components/parameters/gate"
+            - "$ref": "#/components/parameters/vegsystemreferanse"
+            - "$ref": "#/components/parameters/veglenkesekvens"
+            - "$ref": "#/components/parameters/kartutsnitt"
+            - "$ref": "#/components/parameters/polygon"
+            - "$ref": "#/components/parameters/tidspunkt"
+            - "$ref": "#/components/parameters/overlapp"
+        get:
+            tags:
+                - Vegobjekter
+            responses:
+                '200':
+                    description: |-
+                        Uten request-parametre lister dette endepunktet ut lenke til vegobjekter av hver vegobjekttype med statistikk.
+                        Med parametre listes ut de vegobjekttypene som passer med filtrene definert av parametrene.
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    "$ref": "#/components/schemas/vegobjekttype-statistikk"
+    "/vegobjekter/{vegobjekttypeid}":
+        summary: Henter vegobjekter av den oppgitte vegobjekttypen
+        parameters:
+            - "$ref": "#/components/parameters/X-Client"
+            - "$ref": "#/components/parameters/X-Client-Session"
+            - name: vegobjekttypeid
+              in: path
+              required: true
+              description: Id for vegobjekttype som skal hentes.
+              schema:
+                  type: integer
+            - "$ref": "#/components/parameters/inkluder"
+            - "$ref": "#/components/parameters/srid"
+            - "$ref": "#/components/parameters/geometritoleranse"
+            - "$ref": "#/components/parameters/inkludergeometri"
+            - "$ref": "#/components/parameters/inkluder_egenskaper"
+            - "$ref": "#/components/parameters/segmentering"
+            - "$ref": "#/components/parameters/fylke"
+            - "$ref": "#/components/parameters/kommune"
+            - "$ref": "#/components/parameters/kontraktsomrade"
+            - "$ref": "#/components/parameters/riksvegrute"
+            - "$ref": "#/components/parameters/gate"
+            - "$ref": "#/components/parameters/vegsystemreferanse"
+            - "$ref": "#/components/parameters/veglenkesekvens"
+            - "$ref": "#/components/parameters/kartutsnitt"
+            - "$ref": "#/components/parameters/polygon"
+            - "$ref": "#/components/parameters/tidspunkt"
+            - "$ref": "#/components/parameters/overlapp"
+            - "$ref": "#/components/parameters/arm"
+            - "$ref": "#/components/parameters/veglenketype"
+            - "$ref": "#/components/parameters/adskiltelop"
+            - "$ref": "#/components/parameters/typeveg"
+            - "$ref": "#/components/parameters/detaljniva"
+            - "$ref": "#/components/parameters/kryssystem"
+            - "$ref": "#/components/parameters/sideanlegg"
+            - "$ref": "#/components/parameters/trafikantgruppe"
+            - "$ref": "#/components/parameters/antall"
+            - "$ref": "#/components/parameters/start"
+            - "$ref": "#/components/parameters/egenskap"
+            - name: ider
+              in: query
+              description: Hent objekter med de oppgitte idene. Kommaseparert.
+              schema:
+                  type: array
+                  items:
+                      type: integer
+            - $ref: '#/components/parameters/alle_versjoner'
+            - $ref: '#/components/parameters/endret_etter'
+        get:
+            tags:
+                - Vegobjekter
+            responses:
+                '200':
+                    description: Vegobjekter av den oppgitte vegobjekttypen med eventuelle filtre
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                "$ref": "#/components/schemas/vegobjekt-liste-respons"
+    "/vegobjekter/{vegobjekttypeid}/statistikk":
+        summary: Henter statistikk for objekter av den oppgitte vegobjekttypen
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   name: vegobjekttypeid
+                in: path
+                required: true
+                description: Id for vegobjekttype som skal hentes statistikk for.
+                schema:
+                    type: integer
+            -   "$ref": "#/components/parameters/srid"
+            -   "$ref": "#/components/parameters/segmentering"
+            -   "$ref": "#/components/parameters/fylke"
+            -   "$ref": "#/components/parameters/kommune"
+            -   "$ref": "#/components/parameters/kontraktsomrade"
+            -   "$ref": "#/components/parameters/riksvegrute"
+            -   "$ref": "#/components/parameters/gate"
+            -   "$ref": "#/components/parameters/vegsystemreferanse"
+            -   "$ref": "#/components/parameters/veglenkesekvens"
+            -   "$ref": "#/components/parameters/kartutsnitt"
+            -   "$ref": "#/components/parameters/polygon"
+            -   "$ref": "#/components/parameters/tidspunkt"
+            -   "$ref": "#/components/parameters/overlapp"
+            -   "$ref": "#/components/parameters/arm"
+            -   "$ref": "#/components/parameters/veglenketype"
+            -   "$ref": "#/components/parameters/adskiltelop"
+            -   "$ref": "#/components/parameters/typeveg"
+            -   "$ref": "#/components/parameters/detaljniva"
+            -   "$ref": "#/components/parameters/kryssystem"
+            -   "$ref": "#/components/parameters/sideanlegg"
+            -   "$ref": "#/components/parameters/trafikantgruppe"
+            -   "$ref": "#/components/parameters/egenskap"
+            -   "$ref": "#/components/parameters/alle_versjoner"
+            -   "$ref": "#/components/parameters/endret_etter"
+        get:
+            tags:
+                - Vegobjekter
+            responses:
+                '200':
+                    description: Vegobjekter av den oppgitte vegobjekttypen med eventuelle filtre
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                "$ref": "#/components/schemas/statistikk"
+    "/vegobjekter/{vegobjekttypeid}/{vegobjektid}":
+        summary: Denne videresender til siste versjon av objektet med oppgitt id.
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   name: vegobjekttypeid
+                in: path
+                required: true
+                description: Id for objektets vegobjekttype
+                schema:
+                    type: integer
+            -   name: vegobjektid
+                in: path
+                required: true
+                description: Id for objektet
+                schema:
+                    type: integer
+                    format: int64
+            -   "$ref": "#/components/parameters/srid"
+            -   "$ref": "#/components/parameters/inkluder"
+            -   "$ref": "#/components/parameters/inkludergeometri"
+            -   "$ref": "#/components/parameters/inkluder_egenskaper"
+            -   "$ref": "#/components/parameters/geometritoleranse"
+            -   "$ref": "#/components/parameters/dybde"
+        get:
+            tags:
+                - Vegobjekter
+            responses:
+                '303':
+                    description: Redirect til siste versjon av objektet
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        Location:
+                            description: Absolutt url til siste versjon
+                            schema:
+                                type: string
+                            example: https://nvdbapiles-v3.atlas.vegvesen.no/vegobjekter/105/78697179/1
+    "/vegobjekter/{vegobjekttypeid}/{vegobjektid}/{versjon}":
+        summary: Objektet med oppgitt id og id.
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   name: vegobjekttypeid
+                in: path
+                required: true
+                description: Id for objektets vegobjekttype
+                schema:
+                    type: integer
+            -   name: vegobjektid
+                in: path
+                required: true
+                description: Id for objektet
+                schema:
+                    type: integer
+                    format: int64
+            -   name: versjon
+                in: path
+                required: true
+                description: versjon av objektet
+                schema:
+                    type: integer
+            -   "$ref": "#/components/parameters/srid"
+            -   "$ref": "#/components/parameters/inkluder"
+            -   "$ref": "#/components/parameters/inkludergeometri"
+            -   "$ref": "#/components/parameters/inkluder_egenskaper"
+            -   "$ref": "#/components/parameters/geometritoleranse"
+            -   "$ref": "#/components/parameters/dybde"
+        get:
+            tags:
+                - Vegobjekter
+            responses:
+                '200':
+                    description: Objektet
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                "$ref": "#/components/schemas/vegobjekt"
+    "/vegobjekter/{vegobjekttypeid}/{vegobjektid}/versjoner":
+        summary: Alle versjoner av objekt med oppgitt id
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   name: vegobjekttypeid
+                in: path
+                required: true
+                description: Id for objektets vegobjekttype
+                schema:
+                    type: integer
+            -   name: vegobjektid
+                in: path
+                required: true
+                description: Id for objektet
+                schema:
+                    type: integer
+                    format: int64
+            -   "$ref": "#/components/parameters/srid"
+            -   "$ref": "#/components/parameters/inkluder"
+            -   "$ref": "#/components/parameters/inkludergeometri"
+            -   "$ref": "#/components/parameters/inkluder_egenskaper"
+            -   "$ref": "#/components/parameters/geometritoleranse"
+            -   "$ref": "#/components/parameters/dybde"
+        get:
+            tags:
+                - Vegobjekter
+            responses:
+                '200':
+                    description: Versjoner av objektet
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    "$ref": "#/components/schemas/vegobjekt"
+    "/vegobjekter/{vegobjekttypeid}/{vegobjektid}/{versjon}/egenskaper/{egenskapid}/{binaerobjektid}/binaer":
+        summary: Hent verdi av binæregenskap for versjon av vegobjekt
+        parameters:
+            -   name: vegobjekttypeid
+                in: path
+                required: true
+                description: Id for objektets vegobjekttype
+                schema:
+                    type: integer
+            -   name: vegobjektid
+                in: path
+                required: true
+                description: Id for objektet
+                schema:
+                    type: integer
+                    format: int64
+            -   name: versjon
+                in: path
+                required: true
+                description: versjon av objektet
+                schema:
+                    type: integer
+            -   name: egenskapid
+                in: path
+                required: true
+                description: Id for binæregenskapen som refererer til blob
+                schema:
+                    type: integer
+            -   name: binaerobjektid
+                in: path
+                required: true
+                description: blob_id fra binæregenskap
+                schema:
+                    type: integer
+        get:
+            tags:
+                - Vegobjekter
+            responses:
+                '200':
+                    description: Versjoner av objektet
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                    content:
+                        application/octet-stream:
+                            schema:
+                                type: string
+                                format: binary
+    "/vegobjekt":
+        summary: Returnerer et vegobjekt med oppgitt NVDB-id og en valgfri sluttdato for objektet.
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   name: id
+                in: query
+                description: Id for objektet
+                schema:
+                    type: integer
+            -   name: sluttDato
+                in: query
+                description: Sluttdato til et objekt. Henter ut riktig versjon hvis oppgitt dato stemmer overens med en versjons sluttdato. Dato kan være kun et år (f.eks 2008), eller en spesifikk dato i YYYY-MM-DD-format (f.eks. 2021-05-30)
+                schema:
+                    type: string
+                example: https://nvdbapiles-v3.atlas.vegvesen.no/vegobjekt?id=78697179&sluttDato=2021-05-03
+        get:
+            tags:
+                - Vegobjekter
+            responses:
+                '303':
+                    description: Redirect til siste versjon av objektet
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        Location:
+                            description: Absolutt url til siste versjon
+                            schema:
+                                type: string
+                            example: https://nvdbapiles-v3.atlas.vegvesen.no/vegobjekter/105/78697179/1
+
+    "/vegobjekttyper":
+        summary: Alle vegobjekttyper, også referert til som «Datakatalogen».
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": "#/components/parameters/If-None-Match"
+            -    name: inkluder
+                 in: query
+                 description: Angir hvilke informasjonsfelter som skal inkluderes i tillegg til vegobjekttypenes metadata.
+                 schema:
+                     type: string
+                     enum:
+                         - egenskapstyper
+                         - relasjonstyper
+                         - stedfesting
+                         - alle
+                     default: alle
+            - name: kategori
+              in: query
+              description: Begrens vegobjekttyper etter kategori. (/vegobjekttyper/kategorier)
+              schema:
+                  type: integer
+        get:
+            tags:
+                - Datakatalog
+            responses:
+                '200':
+                    description: Vegobjekttyper
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                        ETag:
+                            "$ref": "#/components/headers/ETag"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/vegobjekttype'
+                '304':
+                    description: Etag matchet, forrige respons kan gjenbrukes.
+    "/vegobjekttyper/{vegobjekttypeid}":
+        summary: Vegobjekttype
+        parameters:
+            -   name: vegobjekttypeid
+                required: true
+                in: path
+                schema:
+                    type: integer
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": "#/components/parameters/If-None-Match"
+            -    name: inkluder
+                 in: query
+                 description: Angir hvilke informasjonsfelter som skal inkluderes i tillegg til vegobjekttypenes metadata.
+                 schema:
+                     type: string
+                     enum:
+                         - egenskapstyper
+                         - relasjonstyper
+                         - stedfesting
+                         - alle
+                     default: alle
+            - name: kategori
+              in: query
+              description: Begrens vegobjekttyper etter kategori. (/vegobjekttyper/kategorier)
+              schema:
+                  type: integer
+        get:
+            tags:
+                - Datakatalog
+            responses:
+                '200':
+                    description: Versjoner av objektet
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                        ETag:
+                            "$ref": "#/components/headers/ETag"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/vegobjekttype'
+                '304':
+                    description: Etag matchet, forrige respons kan gjenbrukes.
+    "/vegobjekttyper/enheter":
+        description: De enheter som er definert i datakatalogen
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": "#/components/parameters/If-None-Match"
+        get:
+            tags:
+                - Datakatalog
+            responses:
+                '200':
+                    description: Enheter
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                        ETag:
+                            "$ref": "#/components/headers/ETag"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    properties:
+                                        id:
+                                            type: integer
+                                        navn:
+                                            type: string
+                                        kortnavn:
+                                            type: string
+                '304':
+                    description: Etag matchet, forrige respons kan gjenbrukes.
+    "/vegobjekttyper/datatyper":
+        description: Datatyper som er referert til i APIet. (kommer egentlig ikke fra NVDB, så kan forsvinne)
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": "#/components/parameters/If-None-Match"
+        get:
+            tags:
+                - Datakatalog
+            responses:
+                '200':
+                    description: Datatyper
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                        ETag:
+                            "$ref": "#/components/headers/ETag"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    properties:
+                                        id:
+                                            type: integer
+                                        navn:
+                                            type: string
+                                        kortnavn:
+                                            type: string
+                                        beskrivelse:
+                                            type: string
+                '304':
+                    description: Etag matchet, forrige respons kan gjenbrukes.
+    "/vegobjekttyper/kategorier":
+        description: Kategorier vegobjekttyper deles inn i
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": "#/components/parameters/If-None-Match"
+        get:
+            tags:
+                - Datakatalog
+            responses:
+                '200':
+                    description: Vegobjekttype-kategorier
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                        ETag:
+                            "$ref": "#/components/headers/ETag"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    properties:
+                                        id:
+                                            type: integer
+                                        navn:
+                                            type: string
+                                        kortnavn:
+                                            type: string
+                                        sorteringsnummer:
+                                            type: integer
+                                        beskrivelse:
+                                            type: string
+                                        startdato:
+                                            type: string
+                                            format: date
+    "/vegobjekttyper/versjon":
+        description: Gjeldende versjon av datakatalogen
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+        get:
+            tags:
+                - Datakatalog
+            responses:
+                '200':
+                    description: Versjon av datakatalogen
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                properties:
+                                    id:
+                                        type: string
+                                    dato:
+                                        type: string
+                                        format: date
+                                    versjon:
+                                        type: string
+    "/vegobjekttyper/egenskapstypekategorier":
+        description: Kategorier egenskapstyper deles inn i
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": "#/components/parameters/If-None-Match"
+        get:
+            tags:
+                - Datakatalog
+            responses:
+                '200':
+                    description: Egenskapstypekategorier
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                        ETag:
+                            "$ref": "#/components/headers/ETag"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    properties:
+                                        id:
+                                            type: integer
+                                        navn:
+                                            type: string
+                                        kortnavn:
+                                            type: string
+                                        sorteringsnummer:
+                                            type: integer
+                                        beskrivelse:
+                                            type: string
+    "/vegnett":
+        description: Rot for vegnett
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+        get:
+            tags:
+                - Vegnett
+            responses:
+                '200':
+                    description: Liste over vegnettsresursser
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    properties:
+                                        navn:
+                                            type: string
+                                            example: Veglenkesekvenser
+                                        href:
+                                            type: string
+                                            example: https://nvdbapiles-v3.atlas.vegvesen.no/vegnett/lenkesekvenser
+    "/vegnett/veglenkesekvenser":
+        description: Veglenkesekvenser
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": '#/components/parameters/ider'
+            -   "$ref": '#/components/parameters/fylke'
+            -   "$ref": '#/components/parameters/kommune'
+            -   "$ref": '#/components/parameters/kontraktsomrade'
+            -   "$ref": '#/components/parameters/riksvegrute'
+            -   "$ref": '#/components/parameters/gate'
+            -   "$ref": '#/components/parameters/vegsystemreferanse'
+            -   "$ref": '#/components/parameters/kartutsnitt'
+            -   "$ref": '#/components/parameters/polygon'
+            -   "$ref": '#/components/parameters/topologiniva'
+            - name: superid
+              in: query
+              description: Hent detaljerte veglenkesekvenser stedfestet på veglenkesekvens med denne id
+              schema:
+                  type: integer
+                  format: int64
+            -   "$ref": '#/components/parameters/antall'
+            -   "$ref": '#/components/parameters/start'
+        get:
+            tags:
+                - Vegnett
+            responses:
+                '200':
+                    description: Side med veglenkesekvenser
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                $ref: '#/components/schemas/veglenkesekvens-liste-respons'
+    "/vegnett/veglenkesekvenser/{veglenkesekvensid}":
+        description: Veglenkesekvens
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            - name: veglenkesekvensid
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  format: int64
+            - $ref: '#/components/parameters/srid'
+        get:
+            tags:
+                - Vegnett
+            responses:
+                200:
+                    description: En veglenkesekvens
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                $ref: '#/components/schemas/veglenkesekvens'
+    "/vegnett/noder":
+        description: Hent vegnoder. For alle parametrene unntatt id, polygon og kartutsnitt vil en node bli inkludert i responsen dersom den er tilknyttet en lenke med den aktuelle verdien.
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": '#/components/parameters/ider'
+            -   "$ref": '#/components/parameters/topologiniva'
+            - name: superid
+              in: query
+              description: Hent alle noder med tilkobling til veglenker som har veglenke med oppgitt id som "forelder" i overordnet topologinivå.
+              schema:
+                  type: integer
+                  format: int64
+            -   "$ref": '#/components/parameters/fylke'
+            -   "$ref": '#/components/parameters/kommune'
+            -   "$ref": '#/components/parameters/kontraktsomrade'
+            -   "$ref": '#/components/parameters/riksvegrute'
+            -   "$ref": '#/components/parameters/gate'
+            -   "$ref": '#/components/parameters/vegsystemreferanse'
+            -   "$ref": '#/components/parameters/kartutsnitt'
+            -   "$ref": '#/components/parameters/polygon'
+            -   "$ref": '#/components/parameters/tidspunkt'
+        get:
+            tags:
+                - Vegnett
+            responses:
+                200:
+                    description: Side med Vegnoder
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                $ref: '#/components/schemas/vegnoder-liste-respons'
+    "/vegnett/noder/{nodeid}":
+        description: Vegnode
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            - name: nodeid
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  format: int64
+            - $ref: '#/components/parameters/srid'
+        get:
+            tags:
+                - Vegnett
+            responses:
+                200:
+                    description: En vegnode
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                $ref: '#/components/schemas/vegnode'
+    "/vegnett/veglenkesekvenser/segmentert":
+        description: En segmentert versjon av vegnettet. Dersom `historisk` er `false` eller fraværende er det kun segmenter uten sluttdato som returneres.
+
+            Det er ikke alltid et 1-til-1-forhold mellom veglenkene som finnes i NVDB-databasen,
+            og veglenke-segmenter som eksponeres gjennom dette endepunktet.
+
+            Veglenkeer som eksponeres gjennom APIet er segmentert etter vegsystemreferanse-objektene, kontraktsområder og riksvegruter,
+            slik at hvert objekt har én vegsystemreferanse. Det vil derfor finnes flere veglenke-segmenter som har samme id, og startposisjon og
+            sluttposisjon vil kunne avvike fra henholdsvis 0 og 1.
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": "#/components/parameters/vegsystemreferanse"
+            -   "$ref": "#/components/parameters/fylke"
+            -   "$ref": "#/components/parameters/kommune"
+            -   "$ref": "#/components/parameters/kontraktsomrade"
+            -   "$ref": "#/components/parameters/riksvegrute"
+            -   "$ref": "#/components/parameters/gate"
+            -   "$ref": "#/components/parameters/kartutsnitt"
+            -   "$ref": "#/components/parameters/polygon"
+            -   "$ref": "#/components/parameters/tidspunkt"
+            -   name: historisk
+                in: query
+                description: Ved `true` returneres også segmenter med sluttdato
+                schema:
+                    type: boolean
+                    default: false
+            -   $ref: '#/components/parameters/arm'
+            -   $ref: '#/components/parameters/kryssystem'
+            -   $ref: '#/components/parameters/sideanlegg'
+            -   $ref: '#/components/parameters/detaljniva'
+            -   $ref: '#/components/parameters/typeveg'
+            -   $ref: '#/components/parameters/adskiltelop'
+            -   $ref: '#/components/parameters/veglenketype'
+            -   $ref: '#/components/parameters/trafikantgruppe'
+            -   $ref: '#/components/parameters/geometritoleranse'
+        get:
+            tags:
+                - Vegnett
+            responses:
+                200:
+                    description: Veglenkesekvens-segmenter
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                $ref: '#/components/schemas/veglenkesegment-liste-respons'
+    "/vegnett/veglenkesekvenser/segmentert/{veglenkesekvensid}":
+        description: Gir alle segmenter for en veglenkesekvens.
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   name: veglenkesekvensid
+                in: path
+                required: true
+                schema:
+                    type: integer
+                    format: int64
+            -   name: historisk
+                in: query
+                description: Ved `true` returneres også segmenter med sluttdato
+                schema:
+                    type: boolean
+                    default: false
+            - $ref: '#/components/parameters/srid'
+        get:
+            tags:
+                - Vegnett
+            responses:
+                200:
+                    description: Segmenter for veglenkesekvens
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/veglenkesegment'
+    "/omrader":
+        description: Lenker til de forskjellige områdetypene
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+        get:
+            tags:
+                - Områder
+            responses:
+                200:
+                    description: Liste med områdetype
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    properties:
+                                        navn:
+                                            type: string
+                                            example: Fylker
+                                        href:
+                                            type: string
+                                            example: https://nvdbapiles-v3.atlas.vegvesen.no/omrader/fylker
+    "/omrader/fylker":
+        description: Fylker
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": '#/components/parameters/If-None-Match'
+            -   "$ref": '#/components/parameters/srid'
+            -   "$ref": '#/components/parameters/omradeinkluder'
+        get:
+            tags:
+                - Områder
+            responses:
+                200:
+                    description: Liste med fylker
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        ETag:
+                            "$ref": "#/components/headers/ETag"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/fylke'
+                '304':
+                    description: Etag matchet, forrige respons kan gjenbrukes.
+    "/omrader/kommuner":
+        description: Kommuner
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": '#/components/parameters/If-None-Match'
+            -   "$ref": '#/components/parameters/srid'
+            -   "$ref": '#/components/parameters/omradeinkluder'
+        get:
+            tags:
+                - Områder
+            responses:
+                200:
+                    description: Liste med kommuner
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        ETag:
+                            "$ref": "#/components/headers/ETag"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/kommune'
+                '304':
+                    description: Etag matchet, forrige respons kan gjenbrukes.
+    "/omrader/riksvegruter":
+        description: Riksvegruter
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": '#/components/parameters/If-None-Match'
+            -   "$ref": '#/components/parameters/omradeinkluder_minimal'
+        get:
+            tags:
+                - Områder
+            responses:
+                200:
+                    description: Liste med riksvegruter
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        ETag:
+                            "$ref": "#/components/headers/ETag"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/riksvegrute_rev1'
+                        application/vnd.vegvesen.nvdb-v3-rev2+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/riksvegrute_rev2'
+                '304':
+                    description: Etag matchet, forrige respons kan gjenbrukes.
+    "/omrader/kontraktsomrader":
+        description: Kontraktsområder
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": '#/components/parameters/If-None-Match'
+            -   "$ref": '#/components/parameters/omradeinkluder_minimal'
+        get:
+            tags:
+                - Områder
+            responses:
+                200:
+                    description: Liste med kontraktsområder
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        ETag:
+                            "$ref": "#/components/headers/ETag"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/kontraktsomrade_rev1'
+                        application/vnd.vegvesen.nvdb-v3-rev2+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/kontraktsomrade_rev2'
+    "/omrader/gater":
+        description: Gater
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": '#/components/parameters/If-None-Match'
+            -   "$ref": '#/components/parameters/omradeinkluder_minimal'
+        get:
+            tags:
+                - Områder
+            responses:
+                200:
+                    description: Liste med gater
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                properties:
+                                    gater:
+                                        type: array
+                                        items:
+                                            $ref: '#/components/schemas/omrade_gate'
+                                    metadata:
+                                        $ref: "#/components/schemas/paginering-metadata"
+    "/posisjon":
+        description: Tjeneste for å finne nærmeste veg til en gitt koordinat.
+            Parameterne `nord+ost` eller `lat+lon` er obligatoriske.
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            - name: nord
+              in: query
+              description: Nordlig koordinat
+              schema:
+                  type: number
+                  format: double
+            - name: ost
+              in: query
+              description: Østlig koordinat
+              schema:
+                  type: number
+                  format: double
+            - name: lat
+              in: query
+              description: Breddegrad
+              schema:
+                  type: number
+                  format: double
+            - name: lon
+              in: query
+              description: Lengdegrad
+              schema:
+                  type: number
+                  format: double
+            - name: maks_avstand
+              in: query
+              description: Angir søkeavstand i meter
+              schema:
+                  type: integer
+                  default: 30
+            - name: maks_antall
+              in: query
+              description: Angir hvor mange resultater som maksimum skal returneres
+              schema:
+                  type: integer
+                  default: 1
+            - name: konnekteringslenker
+              in: query
+              description: Angir om det skal returneres treff på konnekteringslenker
+              schema:
+                  type: boolean
+                  default: false
+            - name: detaljerte_lenker
+              in: query
+              description: Angir om det skal returneres treff på detaljerte vegnettsnivå
+              schema:
+                  type: boolean
+                  default: false
+            - name: tidspunkt
+              description: Begrense spørring til det gitte tidspunktet
+              required: false
+              example: '2018-01-01'
+              in: query
+              schema:
+                  type: string
+                  format: date
+            - $ref: "#/components/parameters/vegsystemreferanse"
+            - $ref: "#/components/parameters/srid"
+        get:
+            tags:
+                - Vegnett
+                - Posisjon
+            responses:
+                '200':
+                    description: Posisjoner på vegnettet
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/posisjonsresultat'
+    "/veg":
+        description: Denne tjenesten kan brukes til å gjøre et oppslag på lenkesekvens eller vegsystemreferanse (kun punkt, ikke fra-til),
+            og få returnert det tilhørende punktet på vegnettet med både koordinat, vegsystemreferanse og relativ posisjon.
+
+            `vegsystemreferanse` eller `lenkesekvens` må oppgis. Dersom `vegsystemreferanse` er brukt er det kun
+            veglenker med type `HOVED` og `KONNEKTERTING` som blir returnert.
+            Eksempel er kall `/veg?vegsystemreferanse=1600Ev6s12m1000`
+        parameters:
+            - name: vegsystemreferanse
+              description: Filtrer vegobjekter på [vegsystemreferanse](https://api.vegdata.no/v3/vegsystemreferanse.html)
+              required: false
+              examples:
+                  EV6S1D1m341:
+                      value: EV6S1D1m341
+                  R6S1D1m1300KD4m129:
+                      value: R6S1D1m1300KD4m129
+                  SP12S1D3m123:
+                      value: SP12S1D3m123
+              in: query
+              schema:
+                  type: string
+            - name: veglenkesekvens
+              description: 'Filtrer vegobjekter på stedfesting på vegnettet. Format: `posisjon@veglenkesekvensid`'
+              required: false
+              example: 0.456@1226
+              in: query
+              schema:
+                  type: string
+            - name: tidspunkt
+              description: Begrense spørring til det gitte tidspunktet
+              required: false
+              example: '2018-01-01'
+              in: query
+              schema:
+                type: string
+                format: date
+            - $ref: '#/components/parameters/srid'
+            - $ref: '#/components/parameters/kommune'
+        get:
+            tags:
+                - Vegnett
+                - Posisjon
+            responses:
+                '200':
+                    description: Posisjoner på vegnettet
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                $ref: '#/components/schemas/posisjonsresultat'
+    "/veg/batch":
+        description: Denne tjenesten kan brukes til å gjøre flere oppslag på vegs relativposisjon eller vegsystemreferanse, og få returnert de tilhørende punktene på vegnettet med både koordinat, vegsystemreferanse og relativ posisjon.
+            `vegsystemreferanser` eller `lenkesekvenser` må oppgis.
+            Eksempel er kall `/veg/batch?lenkesekvenser=0.0123456789@1234,0.1243412@5123,0.0123456789@1234245
+        parameters:
+            - name: vegsystemreferanser
+              in: query
+              schema:
+                  type: string
+            - name: veglenkesekvenser
+              in: query
+              schema:
+                  type: string
+            - $ref: '#/components/parameters/kommune'
+            - $ref: '#/components/parameters/srid'
+        get:
+            tags:
+                - Vegnett
+                - Posisjon
+            responses:
+                '200':
+                    description: Posisjoner på vegnettet
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: object
+                                additionalProperties:
+                                    $ref: '#/components/schemas/posisjonsresultat'
+    "/transaksjoner":
+        description: Transaksjoner i NVDB
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": "#/components/parameters/ider"
+            - name: fra
+              in: query
+              description: Inkluder transaksjoner fra og med dette tidspunktet
+              schema:
+                  type: string
+                  format: datetime
+                  example: 2018-01-01T10:50:05
+            - name: til
+              in: query
+              description: Inkluder transaksjoner til og med dette tidspunktet
+              schema:
+                  type: string
+                  format: datetime
+                  example: 2018-01-01T12:50:05
+        get:
+            tags:
+                - Transaksjoner
+            responses:
+                '200':
+                    description: Posisjoner på vegnettet
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                $ref: '#/components/schemas/transaksjon-liste-respons'
+    "/status":
+        description: Status for transaksjoner og datakatalog
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+        get:
+            tags:
+                - Datakatalog
+                - Transaksjoner
+            responses:
+                '200':
+                    description: Nåværende status
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                properties:
+                                    datagrunnlag:
+                                        properties:
+                                            datakatalog:
+                                                properties:
+                                                    dato:
+                                                        type: string
+                                                        format: date
+                                                        example: 2020-06-22
+                                                    id:
+                                                        type: integer
+                                                        example: 876
+                                                    versjon:
+                                                        type: string
+                                                        example: 2.21
+                                            sist_oppdatert:
+                                                type: string
+                                                format: datetime
+                                                example: 2020-07-15T10:49:08
+                                            sist_prosesserte_transaksjon:
+                                                properties:
+                                                    transaksjonsid:
+                                                        type: integer
+                                                        example: 4886746
+                                                    transaksjonstidspunkt:
+                                                        type: string
+                                                        format: datetime
+                                                        example: 2020-07-15T10:48:49
+                                    kjorende_oppgave:
+                                        description: Hvilken oppgave indekseringsprosessen behandler
+                                        properties:
+                                            oppgave:
+                                                type: string
+                                                example: IndexTransaction(4886747, 2020-07-15 10:48:53)
+    "/auth/login":
+        description: >
+            Oauth2 og OpenId Connect brukes for autentisering. Det er enkelte vegobjekttyper og egenskaper som er sensitive, disse må man tildeles rettigheter for
+            og autentisere seg for å få eksponert.
+
+            Brukernavn POST'es til login-endepunktet, ved vellykket innlogging får man tilbake et idToken og refreshToken.
+            Id-token settes i `Authorization`-header: `Authorization=Bearer {idToken}`. Tokenet er gyldig en begrenset periode, for å få nye tokens POSTes refreshToken til
+            refresh-endepunkt.
+            Feltet `user_type` valgfritt, og kan ha en av to verdier: `employee`(personlige brukere) og `serviceaccount`(tjeneste/fjesløse brukere). Om det er utelatt tolkes det som `employee`.
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+        post:
+            tags:
+                - Autentisering
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/innlogging'
+            responses:
+                '200':
+                    description: Vellykket innlogging
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/tokens'
+    "/auth/refresh":
+        description: Skaff nytt idToken med refreshToken
+        parameters:
+            -   "$ref": "#/components/parameters/X-Client"
+            -   "$ref": "#/components/parameters/X-Client-Session"
+        post:
+            tags:
+                - Autentisering
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            properties:
+                                refreshToken:
+                                    type: string
+            responses:
+                '200':
+                    description: Vellykket innlogging
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/tokens'
+    "/beta/vegnett/rute":
+        description: Denne tjenesten er utviklet med tanke for stedfesting av fagobjekter på et vegnett.
+            Endepunktet beregner "stedfesting" gitt start- og slutt-punkt, eller basert på geometri.
+            Viser ruteberegning på detaljert eller kortformat.
+        get:
+            tags:
+                - Vegnett
+            parameters:
+                -   "$ref": "#/components/parameters/X-Client"
+                -   "$ref": "#/components/parameters/X-Client-Session"
+                -   name: start
+                    in: query
+                    description: Startposisjon som et punkt eller posisjon@veglenkesekvens.
+                    examples:
+                        5973:
+                            description: Koordinat i UTM33
+                            value: 226761.786,6564469.3787
+                        veglenkeposisjon:
+                            description: Posisjon på veglenkesekvens
+                            value: 0.1@1234
+                    schema:
+                        type: string
+                -   name: slutt
+                    in: query
+                    description: Sluttposisjon som et punkt eller posisjon@veglenkesekvens
+                    examples:
+                        5973:
+                            description: Koordinat i UTM33
+                            value: 226855.034,6564472.225
+                        veglenkeposisjon:
+                            description: Posisjon på veglenkesekvens
+                            value: 0.9@4321
+                    schema:
+                        type: string
+                -   name: geometri
+                    in: query
+                    description: Finn sammenhengende vegnett som passer med denne geometrien
+                    schema:
+                        type: string
+                        example: LINESTRING Z(226778.2 6564468.6 5, 226747.1 6564470.1 5, 226717.5 6564466.4 5, 226705.9 6564462.7 6.2, 226687.2 6564462.9 6, 226657.7 6564460.7 6, 226628.5 6564459.5 6, 226611.3 6564459.6 6.2)
+                -   name: maks_avstand
+                    in: query
+                    description: Maks avstand i meter til veglenker
+                    schema:
+                        type: integer
+                        default: 10
+                -   name: omkrets
+                    in: query
+                    description: Konvolutt lagt rund start- og slutt-punkt for å beregne rute
+                    schema:
+                        type: integer
+                        default: 100
+                -   name: konnekteringslenker
+                    in: query
+                    description: Inkludere konnekteringslenker
+                    schema:
+                        type: boolean
+                        default: true
+                -   name: detaljerte_lenker
+                    in: query
+                    description: Inkludere detaljerte lenker
+                    schema:
+                        type: boolean
+                        default: false
+                -   name: kortform
+                    in: query
+                    description: Returner minimal respons
+                    schema:
+                        type: boolean
+                        default: false
+                -   "$ref": "#/components/parameters/vegsystemreferanse"
+                -   "$ref": "#/components/parameters/trafikantgruppe"
+                -   name: behold_trafikantgruppe
+                    description: Behold trafikantgruppe gjennom ruten. Trafikantgruppe velges fra første og siste punkt i ruten, om de er ulike velges K (kjørende). Overstyres av parameteren trafikantgruppe.
+                    in: query
+                    required: false
+                    schema:
+                        type: boolean
+                        default: false
+                -   "$ref": "#/components/parameters/typeveg"
+                -   "$ref": "#/components/parameters/tidspunkt"
+                -   name: tidspunkt_start
+                    in: query
+                    description: Begrens vegnettgyldighet til denne startdatoen. Må brukes sammen med `tidspunkt_slutt`.
+                    schema:
+                        type: string
+                        format: date
+                -   name: tidspunkt_slutt
+                    in: query
+                    description: Begrens vegnettgyldighet til denne sluttdatoen. Må brukes sammen med `tidspunkt_start`.
+                    schema:
+                        type: string
+                        format: date
+                -   "$ref": "#/components/parameters/srid"
+            responses:
+                '200':
+                    description: Sammenhengende vegnett for oppgitte parametre
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                $ref: '#/components/schemas/rute-respons'
+        post:
+            tags:
+                - Vegnett
+            parameters:
+                -   "$ref": "#/components/parameters/X-Client"
+                -   "$ref": "#/components/parameters/X-Client-Session"
+            requestBody:
+                description: Ruteforespørsel definert som JSON.
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/RouteRequest'
+            responses:
+                '200':
+                    description: Sammenhengende vegnett for oppgitte parametre
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                $ref: '#/components/schemas/rute-respons'
