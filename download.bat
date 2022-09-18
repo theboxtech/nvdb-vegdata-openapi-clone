@@ -3,7 +3,7 @@ git reset --hard HEAD
 git fetch --all
 git pull --all
 git checkout main --force
-curl https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/openapi.yaml --output openapi2.yaml
+curl https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/openapi.yaml --output openapi.yaml
 git add openapi.yaml
 git commit -m "%Date:~10,4%-%Date:~4,2%-%Date:~7,2%"
 git push origin
