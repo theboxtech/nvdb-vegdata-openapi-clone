@@ -25,6 +25,7 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Update & Push openapi.yaml
+        continue-on-error: true
         run: |      
           git reset --hard HEAD
           git fetch --all
