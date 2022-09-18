@@ -1,0 +1,38 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the workflow will run
+on:
+  schedule:
+    - cron: '30 5 * * 6'
+      
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+  
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      # Runs a single command using the runners shell
+      - name: Update & Push openapi.yaml
+        run: |      
+          git reset --hard HEAD
+          git fetch --all
+          git pull --all
+          git checkout main --force
+          curl https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/openapi.yaml --output openapi.yaml
+          git add openapi.yaml
+          git commit -m "%Date:~10,4%-%Date:~4,2%-%Date:~7,2%"
+          git push origin
+          git checkout fix-errors --force --force
+          git rebase main
+          git push origin --force
