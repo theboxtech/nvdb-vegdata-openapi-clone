@@ -24,17 +24,26 @@ jobs:
       - uses: fregante/setup-git-user@v1
 
       # Runs a single command using the runners shell
-      - name: Update & Push openapi.yaml
-        continue-on-error: true
+      - name: Switch to main branch
         run: |      
           git reset --hard HEAD
           git fetch --all
           git pull --all
           git checkout main --force
+
+      - name: Download
+        run: |
           curl https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/openapi.yaml --output openapi.yaml
+          
+      - name: Commit changes
+        continue-on-error: true
+        run: |
           git add openapi.yaml
           git commit -m "%Date:~10,4%-%Date:~4,2%-%Date:~7,2%"
           git push origin
+
+      - name: Rebase fix-errors branch on top of main
+        run: |
           git checkout fix-errors --force --force
           git rebase main
           git push origin --force
