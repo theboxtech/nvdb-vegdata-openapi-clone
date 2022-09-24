@@ -175,11 +175,20 @@ components:
                 referansesystemet (`srid`-paramteret)
             required: false
             examples:
+                srid=5972/utm32:
+                    value: '1166174, 7080428, 1233013, 7143439'
+                    description: Kartutsnitt i srid 5972/utm32
                 srid=5973/utm33:
                     value: '265273,7019372,346553,7061071'
                     description: Kartutsnitt i srid 5973/utm33
+                srid=5974/utm34:
+                    value: '566673, 7011507, 643670, 7060611'
+                    description: Kartutsnitt i srid 5974/utm34
+                srid=5975/utm35:
+                    value: '456102, 7896579, 358072, 7766625'
+                    description: Kartutsnitt i srid 5975/utm35
                 srid=4326/wgs84:
-                    value: 5.159,60.211,5.441,60.333
+                    value: '5.159,60.211,5.441,60.333'
                     description: Kartutsnitt i srid 4326/wgs84
             in: query
             schema:
@@ -239,15 +248,23 @@ components:
         srid:
             name: srid
             description: "Angir hvilket geografisk referansesystem geometrien skal returneres
-        i. \n Mer informasjon: [EPSG:5973](https://epsg.io/5973) [EPSG:4326](http://epsg.io/4326)"
+        i. Utdata i UTM formater (32, 33, 34, 35) begrenses til 3 desimaler, 4326/WGS84 begrenses til 8 desimaler. \n 
+        Mer informasjon: [EPSG:5972](https://epsg.io/5972) [EPSG:5973](https://epsg.io/5973) 
+        [EPSG:5974](https://epsg.io/5974) [EPSG:5975](https://epsg.io/5975) [EPSG:4326](https://epsg.io/4326)"
             in: query
             required: false
             schema:
                 type: string
                 enum:
+                    - '5972'
                     - '5973'
+                    - '5974'
+                    - '5975'
                     - '4326'
+                    - utm32
                     - utm33
+                    - utm34
+                    - utm35
                     - wgs84
                 default: '5973'
         inkluder:
@@ -304,7 +321,7 @@ components:
             name: inkludergeometri
             description: |-
                 Et vegobjekt har opptil to geometrier, egengeometri og stedfestet geometri.
-                Egengeoemtrien er plassert under `vegobjekt.egenskaper` om den finnes, stedfestet geometri er plassert under `vegobjekt.lokasjon`.
+                Egengeometrien er plassert under `vegobjekt.egenskaper` om den finnes, stedfestet geometri er plassert under `vegobjekt.lokasjon`.
                 I tillegg til de nevnte feltene på vegobjekt-responsen returneres også `vegobjekt.geometri` (dersom man har inkluder=geometri eller alle),
                 slik at man alltid finner geometrien for vegobjektet ett sted. Dette feltet er egengeometri dersom objektet har det, hvis ikke har feltet stedfestet geometri
                 Ved hvilken av disse som er tilfelle finner man ut ved å se på `vegobjekt.geometri.egengeometri`
@@ -505,13 +522,15 @@ components:
         trafikantgruppe:
             name: trafikantgruppe
             description: Filtrer vegobjekter på trafikantgruppe
-            in: query
             required: false
+            in: query
             schema:
                 type: string
                 enum:
                     - K
                     - G
+            style: simple
+            explode: false
         antall:
             name: antall
             description: Angir hvor mange objekter som skal returneres. Øvre grense er avhengig
@@ -619,7 +638,10 @@ components:
                             type: integer
                             example: 5973
                             enum:
+                                - 5972
                                 - 5973
+                                - 5974
+                                - 5975
                                 - 4326
                         egengeometri:
                             description: Angir om geometrien er vegobjektets egengeometri, eller om geometrien er utledet fra vegnettes geometri
@@ -756,7 +778,10 @@ components:
                                         type: integer
                                         example: 5973
                                         enum:
+                                            - 5972
                                             - 5973
+                                            - 5974
+                                            - 5975
                                             - 4326
                                     forenklet:
                                         description: tilstede dersom `geometritoleranse` er spesifisert.
@@ -2432,7 +2457,10 @@ components:
                             type: integer
                             example: 5973
                             enum:
+                                - 5972
                                 - 5973
+                                - 5974
+                                - 5975
                                 - 4326
                 lengde:
                     type: number
@@ -3980,6 +4008,8 @@ paths:
                   format: date
             - $ref: "#/components/parameters/vegsystemreferanse"
             - $ref: "#/components/parameters/srid"
+            - $ref: "#/components/parameters/trafikantgruppe"
+
         get:
             tags:
                 - Vegnett
