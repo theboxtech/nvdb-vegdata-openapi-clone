@@ -1603,6 +1603,20 @@ components:
                         "$ref": "#/components/schemas/transaksjon"
                 metadata:
                     "$ref": "#/components/schemas/paginering-metadata"
+        egenskapstype-utvidet:
+            title: Egenskapstype-utvidet
+            allOf:
+                - $ref: '#/components/schemas/vegobjekt-type-egenskap-base'
+                - properties:
+                      eier:
+                        type: object
+                        properties:
+                          navn_eier:
+                              example: "Rekkverk"
+                              type: string
+                          id_eier:
+                              example: 5
+                              type: integer
         vegobjekttype-egenskap:
             title: Vegobjekttype-egenskap
             oneOf:
@@ -3380,6 +3394,58 @@ paths:
                                 type: array
                                 items:
                                     $ref: '#/components/schemas/vegobjekttype'
+                '304':
+                    description: Etag matchet, forrige respons kan gjenbrukes.
+    "/vegobjekttyper/{vegobjekttypeid}/{egenskapstypeid}":
+        parameters:
+            - "$ref": "#/components/parameters/X-Client"
+            - "$ref": "#/components/parameters/X-Client-Session"
+            - "$ref": "#/components/parameters/If-None-Match"
+        get:
+            summary: Henter informasjon om en spesifikk egenskap og hvilket vegobjekt den tilhører.
+            tags:
+                - Datakatalog
+            responses:
+                '200':
+                    description: Egenskapstype med tilhørende vegobjekt
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                        ETag:
+                            "$ref": "#/components/headers/ETag"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/egenskapstype-utvidet'
+                '304':
+                    description: Etag matchet, forrige respons kan gjenbrukes.
+    "/vegobjekttyper/egenskapstyper/{egenskapstypeid}":
+        parameters:
+            - "$ref": "#/components/parameters/X-Client"
+            - "$ref": "#/components/parameters/X-Client-Session"
+            - "$ref": "#/components/parameters/If-None-Match"
+        get:
+            summary: Henter informasjon om en spesifikk egenskap og hvilket vegobjekt den tilhører (Alias).
+            tags:
+                - Datakatalog
+            responses:
+                '200':
+                    description: Egenskapstype med tilhørende vegobjekt
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                        X-Datakatalog-Versjon:
+                            "$ref": "#/components/headers/X-Datakatalog-Versjon"
+                        ETag:
+                            "$ref": "#/components/headers/ETag"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                $ref: '#/components/schemas/egenskapstype-utvidet'
                 '304':
                     description: Etag matchet, forrige respons kan gjenbrukes.
     "/vegobjekttyper/enheter":
