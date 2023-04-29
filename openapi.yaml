@@ -45,6 +45,25 @@ components:
             example: 402b9aee-16f9-e38d-2ce7-cd6bc20eb3e3
             schema:
                 type: string
+        Accept:
+            name: Accept
+            required: false
+            in: header
+            description: Accept headeren brukes til å sette responsrevisjon. Revisjon 3 er med paginering. Revisjon
+                2 og lavere er uten paginering, og gir max 1000 segmenter i responsen. Dermed vil veglenkesekvenser som
+                har mer enn 1000 segmenter mangle noe data. Bruk revisjon 3 for å hente all data. Om man ikke 
+                spesifiserer revisjon vil responsen være uten paginering.
+            example: application/vnd.vegvesen.nvdb-v3-rev3+json
+            schema:
+                type: string
+                enum:
+                    - application/vnd.vegvesen.nvdb-v3-rev3+json
+                    - application/vnd.vegvesen.nvdb-v3-rev3+xml
+                    - application/vnd.vegvesen.nvdb-v3-rev2+json
+                    - application/vnd.vegvesen.nvdb-v3-rev2+xml
+                    - application/vnd.vegvesen.nvdb-v3-rev1+json
+                    - application/vnd.vegvesen.nvdb-v3-rev1+xml
+                default: application/vnd.vegvesen.nvdb-v3-rev2+json
         If-None-Match:
             name: If-None-Match
             in: header
@@ -128,6 +147,27 @@ components:
                    value: R
                 F:
                    value: F
+            in: query
+            schema:
+                type: array
+                items:
+                    type: string
+            style: simple
+            explode: false
+        vegsystemreferanseWithMunicipality:
+            name: vegsystemreferanse
+            description: Filtrer vegobjekter på [vegsystemreferanse](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/#vegsystemreferanse).
+                Kommaseparert liste. Legg til kommunenummer i starten av vegsystemreferansen for å filtrere på område.
+            required: false
+            examples:
+                EV6:
+                    value: EV6
+                R:
+                    value: R
+                F:
+                    value: F
+                3804EV18:
+                    value: 3804EV18
             in: query
             schema:
                 type: array
@@ -548,6 +588,34 @@ components:
             schema:
                 type: string
     schemas:
+        sist_indekserte_transaksjon:
+            properties:
+                taskId:
+                    type: integer
+                    example: 5775434
+                transaksjonstidspunkt:
+                    type: string
+                    example: "2022-12-16T14:16:12"
+                    description: Tidspunkt transaksjon ble skrevet inn i NVDB av API Skriv.
+                indekseringstidspunkt:
+                    type: string
+                    format: datetime
+                    example: "2022-12-16T14:16:23"
+                    description: Transaksjon er indeksert, og oppdaterte data er tilgjengelig i API Les.
+
+        ikke_indekserte_transaksjoner:
+            type: array
+            items:
+                properties:
+                    taskId:
+                        type: integer
+                        example: 5775434
+                    transaksjonstidspunkt:
+                        type: string
+                        format: datetime
+                        example: "2022-11-29T19:48:27"
+                        description: Tidspunkt transaksjon ble opprettet av API Skriv.
+
         vegobjekttype-referanse:
             title: vegobjekttype-referanse
             properties:
@@ -1994,7 +2062,7 @@ components:
             allOf:
                 -   $ref: '#/components/schemas/vegobjekt-type-egenskap-tekst'
                 -   properties:
-                        tillate_verdier:
+                        tillatte_verdier:
                             type: array
                             items:
                                 $ref: '#/components/schemas/enum_verdi_tekst'
@@ -2003,7 +2071,7 @@ components:
             allOf:
                 -   $ref: '#/components/schemas/vegobjekt-type-egenskap-heltall'
                 -   properties:
-                        tillate_verdier:
+                        tillatte_verdier:
                             type: array
                             items:
                                 $ref: '#/components/schemas/enum_verdi_heltall'
@@ -2012,7 +2080,7 @@ components:
             allOf:
                 -   $ref: '#/components/schemas/vegobjekt-type-egenskap-flyttall'
                 -   properties:
-                        tillate_verdier:
+                        tillatte_verdier:
                             type: array
                             items:
                                 $ref: '#/components/schemas/enum_verdi_flyttall'
@@ -2736,6 +2804,74 @@ components:
                 kommune:
                     type: integer
                     example: 1848
+
+        posisjonsresultat-hp-meter:
+            properties:
+                vegreferanse:
+                    properties:
+                        fylke:
+                            type: integer
+                            example: 42
+                        kommune:
+                            type: integer
+                            example: 4215
+                        kategori:
+                            type: string
+                            example: P
+                        status:
+                            type: string
+                            example: V
+                        nummer:
+                            type: integer
+                            example: 98420
+                        hp:
+                            type: integer
+                            example: 1
+                        meter:
+                            type: integer
+                            example: 8
+                        kortform:
+                            type: string
+                            example: 4215 PV98420 HP1 m8
+                veglenkesekvens:
+                    properties:
+                        veglenkesekvensid:
+                            type: integer
+                            format: int64
+                            example: 123513
+                        relativPosisjon:
+                            type: number
+                            format: double
+                            example: 0.5
+                        kortform:
+                            type: string
+                            example: 0.5@123513
+                geometri:
+                    properties:
+                        wkt:
+                            type: string
+                            example: POINT Z(100593.129 6469837.205 1.584)
+                        srid:
+                            type: integer
+                            example: 5973
+                            default: 5973
+                avstand:
+                    type: number
+                    format: double
+                    description: Lengde i meter fra posisjonsoppslag
+                    example: 7.123
+                kommune:
+                    type: integer
+                    example: 4215
+                startdato:
+                    type: string
+                    format: date
+                    example: '2012-05-01'
+                sluttdato:
+                    type: string
+                    format: date
+                    example: '2018-07-06'
+
         transaksjon-vegobjekt-metadata:
             allOf:
                 - $ref: '#/components/schemas/vegobjekt-metadata'
@@ -2758,7 +2894,13 @@ components:
                 tidspunkt:
                     type: string
                     format: datetime
-                    example: 2020-07-15T10:29:58
+                    example: "2020-07-15T10:29:58"
+                    description: Tidspunkt transaksjon ble skrevet inn i NVDB av API Skriv.
+                indekseringstidspunkt:
+                    type: string
+                    format: datetime
+                    example: "2020-07-15T10:30:14"
+                    description: Transaksjon er indeksert, og oppdaterte data er tilgjengelig i API Les.
                 objekter:
                     type: array
                     items:
@@ -2928,7 +3070,7 @@ paths:
             - "$ref": "#/components/parameters/kontraktsomrade"
             - "$ref": "#/components/parameters/riksvegrute"
             - "$ref": "#/components/parameters/gate"
-            - "$ref": "#/components/parameters/vegsystemreferanse"
+            - "$ref": "#/components/parameters/vegsystemreferanseWithMunicipality"
             - "$ref": "#/components/parameters/veglenkesekvens"
             - "$ref": "#/components/parameters/kartutsnitt"
             - "$ref": "#/components/parameters/polygon"
@@ -2962,7 +3104,7 @@ paths:
             - "$ref": "#/components/parameters/kontraktsomrade"
             - "$ref": "#/components/parameters/riksvegrute"
             - "$ref": "#/components/parameters/gate"
-            - "$ref": "#/components/parameters/vegsystemreferanse"
+            - "$ref": "#/components/parameters/vegsystemreferanseWithMunicipality"
             - "$ref": "#/components/parameters/veglenkesekvens"
             - "$ref": "#/components/parameters/kartutsnitt"
             - "$ref": "#/components/parameters/polygon"
@@ -3009,7 +3151,7 @@ paths:
             - "$ref": "#/components/parameters/kontraktsomrade"
             - "$ref": "#/components/parameters/riksvegrute"
             - "$ref": "#/components/parameters/gate"
-            - "$ref": "#/components/parameters/vegsystemreferanse"
+            - "$ref": "#/components/parameters/vegsystemreferanseWithMunicipality"
             - "$ref": "#/components/parameters/veglenkesekvens"
             - "$ref": "#/components/parameters/kartutsnitt"
             - "$ref": "#/components/parameters/polygon"
@@ -3068,7 +3210,7 @@ paths:
             -   "$ref": "#/components/parameters/kontraktsomrade"
             -   "$ref": "#/components/parameters/riksvegrute"
             -   "$ref": "#/components/parameters/gate"
-            -   "$ref": "#/components/parameters/vegsystemreferanse"
+            -   "$ref": "#/components/parameters/vegsystemreferanseWithMunicipality"
             -   "$ref": "#/components/parameters/veglenkesekvens"
             -   "$ref": "#/components/parameters/kartutsnitt"
             -   "$ref": "#/components/parameters/polygon"
@@ -3655,7 +3797,7 @@ paths:
             -   "$ref": '#/components/parameters/kontraktsomrade'
             -   "$ref": '#/components/parameters/riksvegrute'
             -   "$ref": '#/components/parameters/gate'
-            -   "$ref": '#/components/parameters/vegsystemreferanse'
+            -   "$ref": '#/components/parameters/vegsystemreferanseWithMunicipality'
             -   "$ref": '#/components/parameters/kartutsnitt'
             -   "$ref": '#/components/parameters/polygon'
             -   "$ref": '#/components/parameters/topologiniva'
@@ -3723,7 +3865,7 @@ paths:
             -   "$ref": '#/components/parameters/kontraktsomrade'
             -   "$ref": '#/components/parameters/riksvegrute'
             -   "$ref": '#/components/parameters/gate'
-            -   "$ref": '#/components/parameters/vegsystemreferanse'
+            -   "$ref": '#/components/parameters/vegsystemreferanseWithMunicipality'
             -   "$ref": '#/components/parameters/kartutsnitt'
             -   "$ref": '#/components/parameters/polygon'
             -   "$ref": '#/components/parameters/tidspunkt'
@@ -3777,7 +3919,7 @@ paths:
         parameters:
             -   "$ref": "#/components/parameters/X-Client"
             -   "$ref": "#/components/parameters/X-Client-Session"
-            -   "$ref": "#/components/parameters/vegsystemreferanse"
+            -   "$ref": "#/components/parameters/vegsystemreferanseWithMunicipality"
             -   "$ref": "#/components/parameters/fylke"
             -   "$ref": "#/components/parameters/kommune"
             -   "$ref": "#/components/parameters/kontraktsomrade"
@@ -3819,6 +3961,7 @@ paths:
         parameters:
             -   "$ref": "#/components/parameters/X-Client"
             -   "$ref": "#/components/parameters/X-Client-Session"
+            -   "$ref": "#/components/parameters/Accept"
             -   name: veglenkesekvensid
                 in: path
                 required: true
@@ -3843,6 +3986,16 @@ paths:
                             "$ref": "#/components/headers/X-REQUEST-ID"
                     content:
                         application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/veglenkesegment'
+                        application/vnd.vegvesen.nvdb-v3-rev2+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/veglenkesegment'
+                        application/vnd.vegvesen.nvdb-v3-rev3+json:
                             schema:
                                 type: array
                                 items:
@@ -4072,7 +4225,7 @@ paths:
               schema:
                   type: string
                   format: date
-            - $ref: "#/components/parameters/vegsystemreferanse"
+            - $ref: "#/components/parameters/vegsystemreferanseWithMunicipality"
             - $ref: "#/components/parameters/srid"
             - $ref: "#/components/parameters/trafikantgruppe"
 
@@ -4092,6 +4245,116 @@ paths:
                                 type: array
                                 items:
                                     $ref: '#/components/schemas/posisjonsresultat'
+
+    "/vegreferanseposisjon":
+        description: Tjeneste for å oversette vegreferanse til vegsystemreferanse. Ved default hentes siste gyldige vegsystemreferanse
+        parameters:
+            - "$ref": "#/components/parameters/X-Client"
+            - "$ref": "#/components/parameters/X-Client-Session"
+            - name: vegreferanse
+              description: Vegreferanse for å oversette til vegsystemreferanse
+              required: false
+              example: '5001KV7024hp1m302'
+              in: query
+              schema:
+                  type: string
+                  format: date
+            - name: startDato
+              description: Startdato for tidsintervall
+              required: false
+              example: '2022-01-01'
+              in: query
+              schema:
+                  type: string
+                  format: date
+            - name: sluttDato
+              description: Sluttdato for tidsintervall
+              required: false
+              example: '2022-02-02'
+              in: query
+              schema:
+                  type: string
+                  format: date
+            - name: tidspunkt
+              description: Begrenser spørringen til det gitte tidspunktet
+              required: false
+              example: '2022-02-02'
+              in: query
+              schema:
+                  type: string
+                  format: date
+            - name: historisk
+              in: query
+              description: Angir at historiske vegsystemreferanser skal hentes
+              schema:
+                  type: boolean
+                  default: false
+
+
+        get:
+            tags:
+                - Vegnett
+                - Posisjon
+            responses:
+                '200':
+                    description: Vegsystemreferanser
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/posisjonsresultat'
+
+
+    "/vegreferanse":
+        description: Tjeneste for å oversette lenkeposisjon til gamle vegreferanser i hp/meter
+        parameters:
+            - "$ref": "#/components/parameters/X-Client"
+            - "$ref": "#/components/parameters/X-Client-Session"
+            - name: veglenkeposisjon
+              description: Lenkeposisjon for å oversette til vegsystemreferanse
+              required: true
+              example: 0.523@12228
+              in: query
+              schema:
+                  type: string
+                  format: date
+            - name: tidspunkt
+              description: Begrenser spørringen til det gitte tidspunktet
+              required: false
+              example: '2022-01-01'
+              in: query
+              schema:
+                  type: string
+                  format: date
+            - name: historisk
+              description: Ved "true" returneres segmenter med sluttdato
+              required: false
+              in: query
+              schema:
+                  type: boolean
+                  default: false
+
+        get:
+            tags:
+                - Vegnett
+                - Posisjon
+            responses:
+                '200':
+                    description: Vegreferanser i hp/meter   (gamle vegreferanser som ble brukt i Lese Api V2)
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/posisjonsresultat-hp-meter'
+
     "/veg":
         description: Denne tjenesten kan brukes til å gjøre et oppslag på lenkesekvens eller vegsystemreferanse (kun punkt, ikke fra-til),
             og få returnert det tilhørende punktet på vegnettet med både koordinat, vegsystemreferanse og relativ posisjon.
@@ -4195,25 +4458,94 @@ paths:
                   type: string
                   format: datetime
                   example: 2018-01-01T12:50:05
+
         get:
+            summary: Transaksjoner som er indeksert. Endringene er tilgjengelig i API Les.
             tags:
                 - Transaksjoner
             responses:
                 '200':
-                    description: Posisjoner på vegnettet
+                    description: Transaksjoner
                     headers:
                         X-REQUEST-ID:
                             "$ref": "#/components/headers/X-REQUEST-ID"
                     content:
                         application/vnd.vegvesen.nvdb-v3-rev1+json:
                             schema:
-                                $ref: '#/components/schemas/transaksjon-liste-respons'
+                                    $ref: '#/components/schemas/transaksjon-liste-respons'
+
+
+    "/transaksjoner/status":
+        parameters:
+            - "$ref": "#/components/parameters/X-Client"
+            - "$ref": "#/components/parameters/X-Client-Session"
+            - name: fra
+              in: query
+              description: Inkluder transaksjoner fra og med dette tidspunktet
+              schema:
+                  type: string
+                  format: datetime
+                  example: 2018-01-01T10:50:05
+            - name: type
+              in: query
+              required: false
+              schema:
+                  type: string
+                  default: sist_indeksert
+                  enum:
+                      - ikke_indeksert
+                      - sist_indeksert
+
+        get:
+            summary: Sist indekserte transaksjon / Liste over ikke indekserte transaksjoner
+            tags:
+                - Transaksjoner
+            responses:
+                '200':
+                    description: Transaksjoner
+                    headers:
+                        X-REQUEST-ID:
+                            "$ref": "#/components/headers/X-REQUEST-ID"
+                    content:
+                        application/vnd.vegvesen.nvdb-v3-rev1+json:
+                            schema:
+                                oneOf:
+                                    - $ref: '#/components/schemas/ikke_indekserte_transaksjoner'
+                                    - $ref: '#/components/schemas/sist_indekserte_transaksjon'
+                            examples:
+
+                                Sist-indekserte-transaksjon:
+                                    summary: Sist indekserte transaksjon
+                                    value:
+                                      [
+                                          {
+                                              "taskId": 5783616,
+                                              "transaksjonstidspunkt": "2023-01-05T08:46:58",
+                                              "indekseringstidspunkt": "2023-01-05T08:47:32"
+                                          }
+                                      ]
+
+                                Transaksjoner-ikke-indeksert:
+                                    summary: Transaksjoner som ikke er indeksert
+                                    value:
+                                      [
+                                          {
+                                              "taskId": 5751858,
+                                              "transaksjonstidspunkt": "2022-11-29T19:48:27"
+                                          },
+                                          {
+                                              "taskId": 5751857,
+                                              "transaksjonstidspunkt": "2022-11-29T19:47:40"
+                                          }
+                                      ]
+
     "/status":
         description: Status for transaksjoner og datakatalog
         parameters:
             -   "$ref": "#/components/parameters/X-Client"
             -   "$ref": "#/components/parameters/X-Client-Session"
         get:
+            summary: Viser gjeldende datakatalog, kjørende oppgave og sist indekserte transaksjon
             tags:
                 - Datakatalog
                 - Transaksjoner
@@ -4255,7 +4587,15 @@ paths:
                                                     transaksjonstidspunkt:
                                                         type: string
                                                         format: datetime
-                                                        example: 2020-07-15T10:48:49
+                                                        example: "2020-07-15T10:48:49"
+                                                        description: Tidspunkt transaksjon ble skrevet inn i NVDB av API Skriv.
+                                                    indekseringstidspunkt:
+                                                        type: string
+                                                        format: datetime
+                                                        example: "2020-07-15T10:49:14"
+                                                        description: Transaksjon er indeksert, og oppdaterte data er tilgjengelig i API Les.
+
+
                                     kjorende_oppgave:
                                         description: Hvilken oppgave indekseringsprosessen behandler
                                         properties:
