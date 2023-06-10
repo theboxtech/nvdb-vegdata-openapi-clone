@@ -31,7 +31,7 @@ components:
             required: true
             in: header
             description: 'Noe som identifiserer klienten eller fagsystemet. Eksempler: «Vegkart»,
-        «NVDB Skrive-API». Må settes med mindre forespørselen gjennomføres direkte i en nettleser.'
+        «NVDB Skrive-API». Må settes dersom User-Agent ikke er satt. X-Client foretrekkes.'
             example: Systemet for vegobjekter
             schema:
                 type: string
@@ -2472,11 +2472,6 @@ components:
                 sluttdato:
                     type: string
                     format: date
-                kommune:
-                        type: array
-                        example: [5001]
-                        items:
-                            type: number
                 geometri:
                     $ref: '#/components/schemas/geometri-base'
                 porter:
