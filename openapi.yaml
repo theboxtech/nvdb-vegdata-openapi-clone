@@ -1,1 +1,5 @@
-{"timestamp":"2025-03-22T05:39:39.015+00:00","status":404,"error":"Not Found","path":"/dokumentasjon/openapi/openapi.yaml"}
+[ {
+    "code" : 5000,
+    "message" : "Det har dessverre oppstått en feil!",
+    "help_url" : "https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/"
+} ]
