@@ -1,5 +1,5 @@
 [ {
-"code" : 5000,
-"message" : "Det har dessverre oppstått en feil!",
-"help_url" : "https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/"
+    "code" : 5000,
+    "message" : "Det har dessverre oppstått en feil!",
+    "help_url" : "https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/"
 } ]
