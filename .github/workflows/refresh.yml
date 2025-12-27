@@ -31,25 +31,27 @@ jobs:
           git pull --all
           git checkout main --force
 
-      - name: Download
+      - name: Download V4 OpenAPI specs
         run: |
-          curl -A "nvdb-vegdata-openapi-clone/1.0" https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/openapi.yaml --output openapi.yaml
-          # Validate that we got a valid OpenAPI spec, not an error response
-          if ! head -1 openapi.yaml | grep -q "^openapi:"; then
-            echo "Error: Downloaded file is not a valid OpenAPI spec"
-            cat openapi.yaml
-            exit 1
-          fi
+          # NVDB API Les V4 has multiple separate OpenAPI specs
+          curl -sf -A "nvdb-vegdata-openapi-clone/1.0" "https://nvdbapiles.atlas.vegvesen.no/api-docs/omrader" -o openapi-omrader.json
+          curl -sf -A "nvdb-vegdata-openapi-clone/1.0" "https://nvdbapiles.atlas.vegvesen.no/api-docs/vegobjekter" -o openapi-vegobjekter.json
+          curl -sf -A "nvdb-vegdata-openapi-clone/1.0" "https://nvdbapiles.atlas.vegvesen.no/api-docs/vegnett" -o openapi-vegnett.json
+          curl -sf -A "nvdb-vegdata-openapi-clone/1.0" "https://nvdbapiles.atlas.vegvesen.no/api-docs/datakatalog" -o openapi-datakatalog.json
+
+          # Validate that we got valid OpenAPI specs
+          for file in openapi-*.json; do
+            if ! head -c 50 "$file" | grep -q '"openapi"'; then
+              echo "Error: $file is not a valid OpenAPI spec"
+              cat "$file"
+              exit 1
+            fi
+          done
+          echo "All OpenAPI specs downloaded successfully"
 
       - name: Commit changes
         continue-on-error: true
         run: |
-          git add openapi.yaml
+          git add openapi-*.json
           git commit -m "$(date +%Y-%m-%d)"
           git push origin
-
-      - name: Rebase fix-errors branch on top of main
-        run: |
-          git checkout fix-errors --force --force
-          git rebase main
-          git push origin --force

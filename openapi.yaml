@@ -1,6 +1,0 @@
-[ {
-"code" : 4017,
-"message" : "User-Agent er ingen gyldig nettleser.",
-"message_detailed" : "For aa bruke NVDB Les API maa du sende med en User-Agent header som identifiserer systemet du bruker for aa hente dataene. Prøv eventuelt med en annen nettleser.",
-"help_url" : "https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/#sporing-av-requester"
-} ]
