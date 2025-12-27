@@ -33,13 +33,19 @@ jobs:
 
       - name: Download
         run: |
-          curl https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/openapi.yaml --output openapi.yaml
-          
+          curl -A "nvdb-vegdata-openapi-clone/1.0" https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/openapi.yaml --output openapi.yaml
+          # Validate that we got a valid OpenAPI spec, not an error response
+          if ! head -1 openapi.yaml | grep -q "^openapi:"; then
+            echo "Error: Downloaded file is not a valid OpenAPI spec"
+            cat openapi.yaml
+            exit 1
+          fi
+
       - name: Commit changes
         continue-on-error: true
         run: |
           git add openapi.yaml
-          git commit -m "%Date:~10,4%-%Date:~4,2%-%Date:~7,2%"
+          git commit -m "$(date +%Y-%m-%d)"
           git push origin
 
       - name: Rebase fix-errors branch on top of main
